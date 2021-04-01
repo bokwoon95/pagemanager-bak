@@ -1,0 +1,132 @@
+Still not happy with:
+- WINDOW API. Don't like how clunky w.Name() is. If possible maybe removed named windows entirely, who knows.
+
+similarly db.Exec doesn't have to care what SQL dialect the query object is in. Actually all it has to do is serialize the query and run it, because all *sql.DB drivers expose the same (*sql.Result).RowsAffected() int64 and (*sql.Result).LastInsertID() int64 interface.
+
+for Postgres: AppendSQL doesn't have to rebind ? to $1. db.Fetch will call Rebind(). Similary, (Query).ToSQL() will call Rebind(). This means I no longer need the godawful NestThis() method for queries.
+
+db, ok := srv.DB.Queryer.(*sql.DB)
+if !ok {
+}
+
+user, err := sq.FetchOne(ctx, db, pgsq.
+    From(u).Join(s, s.USER_ID.Eq(u.USER_ID)).Where(u.USER_ID.EqInt(3)),
+    func(row *sq.Row) (User, error) {
+        var user User
+        user.userID = row.Int64(u.USER_ID)
+        user.Username = row.String(u.USERNAME)
+        return user, nil
+    },
+)
+
+func Exec(ctx context.Context, db DB, q Query, execflag ExecFlag) (lastInsertID, rowsAffected int64, err error)
+func Fetch(ctx context.Context, db DB, q Query, func(*Row) error) error
+func FetchOne[Item any](ctx context.Context, db DB, q Query, func(*Row) (Item, error)) (Item, error)
+func FetchSlice[Item any](ctx context.Context, db DB, q Query, mapper func(*Row) (Item, error)) ([]Item, error)
+func FetchAccumulate[Item, Items any](ctx context.Context, db DB, q Query, mapper func(*Row) (Item, error), accumulator func(Item, Items) Items, initial Items) (Items, error)
+
+sq.SQLite.From(u).Select(u.NAME, u.USER_ID)
+sq.Postgres.From(u).Select(u.NAME, u.USER_ID)
+sq.MySQL.From(u).Select(u.NAME, u.USER_ID)
+
+users, err := sq.FetchAccumulate(db, q, mapper, accumulator)
+users, err := sq.FetchAccumulate(sq.NewDB(db, log, logflag), q, mapper, accumulator)
+users, err := sq.FetchAccumulateContext(ctx, srv.DB, sq.SQLite.
+    From(u).
+    Join(s, s.USER_ID.Eq(u.USER_ID)).
+    Where(s.SESSION_ID.In([]string{"a", "b", "c"})),
+    func(row *sq.Row) (user User, err error) {
+        id := row.NullInt64(u.USER_ID)
+        user.Valid = id.Valid
+        user.UserID = id.Int64
+        user.Username = row.String(u.USERNAME)
+        return user, nil
+    },
+    func(user User, users []User) ([]User, error) {
+        users = append(users, user)
+        return users, nil
+    },
+)
+
+sq.FetchSlice(context,Background(), sq.NewDB(db), pgsq.
+    From(u),
+    func(row *sq.Row) (User, error) {
+        var user User
+        return user, nil
+    },
+)
+
+var user User
+var users []User
+users, err := sq.FetchAccumulate(ctx, srv.SQ, q, user.RowMapper, users.Accumulator, users)
+users, err := sq.FetchSlice(ctx, srv.DB, q, user.RowMapper)
+users, err := sq.FetchSlice(ctx, srv.DB, pgsq.
+    From(u).
+    Join(s, s.USER_ID.Eq(u.USER_ID)).
+    Where(s.SESSION_ID.In([]string{"a", "b", "c"})),
+    user.RowMapper,
+)
+users, err := sq.FetchAccumulate(context.Background(), srv.DB, pgsq.
+    From(u).
+    Join(s, s.USER_ID.Eq(u.USER_ID)).
+    Where(s.SESSION_ID.In([]string{"a", "b", "c"})),
+    user.RowMapper(u, s), user.Accumulator, []User{},
+)
+var users []User
+var err error
+sq.WithTxContext(context.Background(), srv.DB, nil, func(tx *sql.Tx) error {
+    db := srv.DB.SetTx(tx)
+    users, err = sq.FetchSlice(context.Background(), db, pgsq.
+        From(u).
+        Join(s, s.USER_ID.Eq(u.USER_ID)).
+        Where(s.SESSION_ID.In([]string{"a", "b", "c"})),
+        user.RowMapper(u, s),
+    )
+    _, _, err = sq.Exec(context.Background(), db)
+    if err != nil {
+        return err
+    }
+    return nil
+})
+sq.WithTx(sqlDB, func(tx *sql.Tx) error {
+    db := sq.DB{
+        Queryer: tx,
+        Logger: sq.DefaultLogger,
+        LogFlag: sq.Lverbose,
+    }
+    users, err = sq.FetchSlice(context.Background(), db, pgsq.
+        From(u).
+        Join(s, s.USER_ID.Eq(u.USER_ID)).
+        Where(s.SESSION_ID.In([]string{"a", "b", "c"})),
+        user.RowMapper(u, s),
+    )
+    _, _, err = sq.Exec(context.Background(), db)
+    if err != nil {
+        return err
+    }
+    return nil
+})
+
+func NewTable[T any, PT Ptr[T]](pt PT) T
+func NewAliasedTable[T any, PT Ptr[T]](pt PT, alias string) T
+func EnsureTables(tables ...BaseTable) error // need to figure out how to insert some config
+
+type USERS struct
+func NEW_USERS(alias string) USERS
+u := NEW_USERS("u")
+u := sq.NewTable(&USERS{})
+u := sq.NewAliasedTable(&USERS{}, "u")
+
+u1 := NEW_USERS(1, "u") // "pm_1_users"
+u2 := NEW_USERS(2, "u") // "pm_2_users"
+func NEW_USERS(n int, alias string) USERS {
+    u := sq.NewTable(&USERS{})
+    u.TableInfo.Name = fmt.Sprintf("pm_%d_users", n)
+    return u
+}
+
+func CompileFetch[T any](q Query, rowmapper func(*Row) (T, error)) CompiledFetch[T]
+func (q CompiledFetch[T]) FetchOne(params map[string]interface{}) (T, error)
+func (q CompiledFetch[T]) FetchSlice(params map[string]interface{}) ([]T, error)
+
+sq.EnsureTables(&USERS{})
