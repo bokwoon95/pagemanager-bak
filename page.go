@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bokwoon95/erro"
@@ -27,15 +28,41 @@ type PageData struct {
 }
 
 func (pg PageData) CSS() template.HTML {
-	return ""
+	buf := bufpool.Get().(*strings.Builder)
+	defer func() {
+		buf.Reset()
+		bufpool.Put(buf)
+	}()
+	for _, name := range pg.CSSList {
+		if buf.Len() > 0 {
+			buf.WriteString("\n")
+		}
+		buf.WriteString(`<link rel="stylesheet" type="text/css" href="`)
+		buf.WriteString(name)
+		buf.WriteString(`">`)
+	}
+	return template.HTML(buf.String())
 }
 
 func (pg PageData) JS() template.HTML {
-	return ""
+	buf := bufpool.Get().(*strings.Builder)
+	defer func() {
+		buf.Reset()
+		bufpool.Put(buf)
+	}()
+	for _, name := range pg.JSList {
+		if buf.Len() > 0 {
+			buf.WriteString("\n")
+		}
+		buf.WriteString(`<script src="`)
+		buf.WriteString(name)
+		buf.WriteString(`"></script>`)
+	}
+	return template.HTML(buf.String())
 }
 
 func (pg PageData) ContentSecurityPolicy() template.HTML {
-	return ""
+	return template.HTML(fmt.Sprint(pg.CSPList))
 }
 
 type PageDataOption func(*PageData)

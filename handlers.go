@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"io/fs"
 	"net/http"
@@ -48,7 +49,7 @@ func (pm *PageManager) PageManager(next http.Handler) http.Handler {
 			return
 		}
 		if route.ThemePath.Valid && route.Template.Valid {
-			pm.serveTemplate(w, r, route.ThemePath.String, route.Template.String)
+			pm.serveTemplate(w, r, route)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -102,26 +103,63 @@ func (pm *PageManager) getRoute(ctx context.Context, path string) (Route, error)
 	return route, nil
 }
 
-func (pm *PageManager) serveTemplate(w http.ResponseWriter, r *http.Request, Theme, Template string) {
-	io.WriteString(w, Theme+" "+Template)
+func (pm *PageManager) serveTemplate(w http.ResponseWriter, r *http.Request, route Route) {
 	pm.themesMutex.RLock()
-	theme, ok := pm.themes[Theme]
+	theme, ok := pm.themes[route.ThemePath.String]
 	pm.themesMutex.RUnlock()
 	if !ok {
-		http.Error(w, erro.Sdump(fmt.Errorf("No such theme called %s", Theme)), http.StatusInternalServerError)
+		http.Error(w, erro.Sdump(fmt.Errorf("No such theme called %s", route.ThemePath.String)), http.StatusInternalServerError)
 		return
 	}
 	if theme.err != nil {
 		http.Error(w, erro.Sdump(theme.err), http.StatusInternalServerError)
 		return
 	}
-	themeTemplate, ok := theme.themeTemplates[Template]
+	themeTemplate, ok := theme.themeTemplates[route.Template.String]
 	if !ok {
-		http.Error(w, erro.Sdump(fmt.Errorf("No such template called %s for theme %s", Template, Theme)), http.StatusInternalServerError)
+		http.Error(w, erro.Sdump(fmt.Errorf("No such template called %s for theme %s", route.Template.String, route.ThemePath.String)), http.StatusInternalServerError)
 		return
 	}
 	if len(themeTemplate.HTML) == 0 {
 		http.Error(w, erro.Sdump(fmt.Errorf("template has no HTML files")), http.StatusInternalServerError)
+		return
+	}
+	type Data struct {
+		Page              PageData
+		TemplateVariables map[string]interface{}
+	}
+	t := template.New(strings.TrimPrefix(themeTemplate.HTML[0], "/")).Funcs(pm.funcmap())
+	datafolderFS := os.DirFS(pm.datafolder)
+	for _, filename := range themeTemplate.HTML {
+		filename = strings.TrimPrefix(filename, "/")
+		b, err := fs.ReadFile(datafolderFS, filename)
+		if err != nil {
+			http.Error(w, erro.Sdump(err), http.StatusInternalServerError)
+			return
+		}
+		_, err = t.Parse(string(b))
+		if err != nil {
+			http.Error(w, erro.Sdump(err), http.StatusInternalServerError)
+			return
+		}
+	}
+	t = t.Lookup(strings.TrimPrefix(themeTemplate.HTML[0], "/"))
+	data := Data{
+		Page: PageData{
+			Ctx:        r.Context(),
+			URL:        r.URL.Path,
+			DataID:     r.URL.Path,
+			LocaleCode: route.LocaleCode,
+			EditMode:   r.FormValue("pm-edit") != "",
+			CSSList:    themeTemplate.CSS,
+			JSList:     themeTemplate.JS,
+			CSPList:    themeTemplate.ContentSecurityPolicy,
+		},
+		TemplateVariables: themeTemplate.TemplateVariables,
+	}
+	err := t.Execute(w, data)
+	if err != nil {
+		http.Error(w, erro.Sdump(err), http.StatusInternalServerError)
 		return
 	}
 	return
