@@ -21,7 +21,7 @@ type PageData struct {
 	URL        string
 	DataID     string
 	LocaleCode string
-	EditMode   bool
+	EditMode   int
 	CSSList    []string
 	JSList     []string
 	CSPList    map[string][]string
@@ -143,10 +143,15 @@ func (pm *PageManager) pmGetValue(pg PageData, key string, opts ...PageDataOptio
 	_, err := sq.FetchContext(pg.Ctx, pm.dataDB, sq.SQLite.
 		From(PAGEDATA).
 		Where(
-			PAGEDATA.LOCALE_CODE.EqString(pg.LocaleCode),
+			PAGEDATA.LOCALE_CODE.In([]string{pg.LocaleCode, ""}),
 			PAGEDATA.DATA_ID.EqString(pg.DataID),
 			PAGEDATA.KEY.EqString(key),
 			PAGEDATA.ARRAY_INDEX.IsNull(),
+		).
+		OrderBy(sq.
+			Case(PAGEDATA.LOCALE_CODE).
+			When(pg.LocaleCode, 1).
+			When("", 2),
 		).
 		Limit(1),
 		func(row *sq.Row) error {
@@ -164,19 +169,33 @@ func (pm *PageManager) pmGetRows(pg PageData, key string, opts ...PageDataOption
 	for _, opt := range opts {
 		opt(&pg)
 	}
-	var values []interface{}
 	PAGEDATA := tables.NEW_PAGEDATA(pg.Ctx, "p")
-	_, err := sq.FetchContext(pg.Ctx, pm.dataDB, sq.SQLite.
+	exists, err := sq.ExistsContext(pg.Ctx, pm.dataDB, sq.SQLite.
 		From(PAGEDATA).
 		Where(
 			PAGEDATA.LOCALE_CODE.EqString(pg.LocaleCode),
 			PAGEDATA.DATA_ID.EqString(pg.DataID),
 			PAGEDATA.KEY.EqString(key),
 			PAGEDATA.ARRAY_INDEX.IsNotNull(),
+		),
+	)
+	localeCode := pg.LocaleCode
+	if !exists {
+		localeCode = "" // default locale code
+	}
+	var values []interface{}
+	var b []byte
+	_, err = sq.FetchContext(pg.Ctx, pm.dataDB, sq.SQLite.
+		From(PAGEDATA).
+		Where(
+			PAGEDATA.LOCALE_CODE.EqString(localeCode),
+			PAGEDATA.DATA_ID.EqString(pg.DataID),
+			PAGEDATA.KEY.EqString(key),
+			PAGEDATA.ARRAY_INDEX.IsNotNull(),
 		).
 		OrderBy(PAGEDATA.ARRAY_INDEX),
 		func(row *sq.Row) error {
-			b := row.Bytes(PAGEDATA.VALUE)
+			b = row.Bytes(PAGEDATA.VALUE)
 			if row.Count() == 0 {
 				return nil
 			}

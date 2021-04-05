@@ -16,7 +16,7 @@ type ExitCode int
 
 // ExitCodes
 const (
-	ExitPeacefully ExitCode = iota
+	ExitPeacefully ExitCode = 0
 )
 
 // Error implements the error interface.

@@ -13,7 +13,6 @@ type PM_SUPERADMIN struct {
 	ID                        sq.NumberField `sq:"type=INTEGER misc=PRIMARY_KEY"`
 	PASSWORD_HASH             sq.StringField
 	ENCRYPTION_KEY_PARAMETERS sq.StringField
-	MAC_KEY_PARAMETERS        sq.StringField
 }
 
 func NEW_SUPERADMIN(ctx context.Context, alias string) PM_SUPERADMIN {

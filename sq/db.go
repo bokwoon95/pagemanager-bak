@@ -23,6 +23,10 @@ func NewDB(db Queryer, logger Logger, logflag LogFlag) DB {
 	return DB{queryer: db, logger: logger, logFlag: logflag}
 }
 
+func NewDefaultDB(db Queryer) DB {
+	return DB{queryer: db, logger: defaultlogger, logFlag: Lcompact}
+}
+
 func NewTx(tx *sql.Tx, src DB) Queryer {
 	return DB{queryer: tx, logger: src.logger, logFlag: src.logFlag}
 }
@@ -340,6 +344,10 @@ func existsContext(ctx context.Context, db Queryer, q Query, skip int) (exists b
 		buf.Reset()
 		bufpool.Put(buf)
 	}()
+	q, err = q.SetFetchableFields([]Field{FieldLiteral("1")})
+	if err != nil {
+		return false, erro.Wrap(err)
+	}
 	buf.WriteString("SELECT EXISTS(")
 	err = q.AppendSQL("", buf, &stats.Args, make(map[string]int))
 	if err != nil {

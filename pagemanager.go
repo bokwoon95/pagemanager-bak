@@ -2,6 +2,7 @@ package pagemanager
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,7 @@ var assetsFS fs.FS
 var templatesFS fs.FS
 var flagDatafolder = flag.String("pm-datafolder", "", "")
 var flagSuperadminFolder = flag.String("pm-superadmin", "", "")
+var flagSuperadminSetup = flag.String("pm-superadmin-setup", "", "")
 var bufpool = sync.Pool{
 	New: func() interface{} { return new(strings.Builder) },
 }
@@ -48,7 +50,7 @@ type PageManager struct {
 	superadminfolder    string
 	dataDB              *sql.DB
 	superadminDB        *sql.DB
-	secretkey           []byte // key-stretched from user's low-entropy password
+	innerEncryptionKey  []byte // key-stretched from user's low-entropy password
 	localesMutex        *sync.RWMutex
 	locales             map[string]string
 }
@@ -114,7 +116,7 @@ func New() (*PageManager, error) {
 	if err != nil {
 		return pm, erro.Wrap(err)
 	}
-	err = seedData(pm.dataDB)
+	err = seedData(ctx, pm.dataDB)
 	if err != nil {
 		return pm, erro.Wrap(err)
 	}
@@ -122,9 +124,15 @@ func New() (*PageManager, error) {
 	if err != nil {
 		return pm, erro.Wrap(err)
 	}
-	pm.locales, err = getLocales(pm.dataDB)
+	pm.locales, err = getLocales(ctx, pm.dataDB)
 	if err != nil {
 		return pm, erro.Wrap(err)
+	}
+	if *flagSuperadminSetup != "" {
+		err = pm.setupSuperadmin()
+		if err != nil {
+			return pm, erro.Wrap(err)
+		}
 	}
 	return pm, nil
 }
@@ -261,8 +269,7 @@ func LocateSuperadminFolder(datafolder string) (string, error) {
 	return defaultpath, nil
 }
 
-func seedData(db sq.Queryer) error {
-	ctx := context.Background()
+func seedData(ctx context.Context, db sq.Queryer) error {
 	p := tables.NEW_PAGES(ctx, "p")
 	db = sq.NewDB(db, nil, sq.Linterpolate|sq.Lcaller)
 	_, _, err := sq.Exec(db, sq.SQLite.DeleteFrom(p), sq.ErowsAffected)
@@ -442,6 +449,22 @@ func seedData(db sq.Queryer) error {
 	if err != nil {
 		return erro.Wrap(err)
 	}
+	// pm_pagedata
+	// pd := tables.NEW_PAGEDATA(ctx, "pd")
+	// _, _, err = sq.Exec(db, sq.SQLite.
+	// 	InsertInto(pd).
+	// 	Valuesx(func(col *sq.Column) error {
+	// 		col.SetString(pd.LOCALE_CODE, "")
+	// 		col.SetString(pd.DATA_ID, "bokwoon95/plainsimple")
+	// 		col.SetString(pd.KEY, "title")
+	// 		col.Set(pd.VALUE, `BIG CHUNGUS`)
+	// 		return nil
+	// 	}),
+	// 	sq.ErowsAffected,
+	// )
+	// if err != nil {
+	// 	return erro.Wrap(err)
+	// }
 	return nil
 }
 
@@ -452,8 +475,7 @@ const (
 	PageDelete
 )
 
-func getLocales(db sq.Queryer) (map[string]string, error) {
-	ctx := context.Background()
+func getLocales(ctx context.Context, db sq.Queryer) (map[string]string, error) {
 	l := tables.NEW_LOCALES(ctx, "l")
 	db = sq.NewDB(db, nil, sq.Linterpolate|sq.Lcaller)
 	locales := make(map[string]string)
@@ -470,4 +492,99 @@ func getLocales(db sq.Queryer) (map[string]string, error) {
 		return locales, erro.Wrap(err)
 	}
 	return locales, nil
+}
+
+func (pm *PageManager) setupSuperadmin() error {
+	ctx := context.Background()
+	SUPERADMIN := tables.NEW_SUPERADMIN(ctx, "")
+	exists, err := sq.ExistsContext(ctx, pm.superadminDB, sq.SQLite.From(SUPERADMIN).Where(SUPERADMIN.ID.EqInt(1)))
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	if exists {
+		fmt.Printf("superadmin already exists, skipping superadmin creation. If you wish to replace the existing superadmin (for example if you have forgotten the password), delete the superadmin folder located at %s and try again.\n", pm.superadminfolder)
+		return nil
+	}
+	password, err := readPassword(`Creating the superadmin, please enter a superadmin password.
+The superadmin is needed to log into the website in order to make changes to it.
+You can always change your password by deleting the superadmin folder (located at ` + pm.superadminfolder + `) and running this setup again.
+Your password will be hidden from you as you type it, do not be alarmed.
+superadmin password: `)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	pw := string(password)
+	passwordKeyDerivation, err := deriveKeyFromPassword(pw)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	innerEncryptionKeyDerivation, err := deriveKeyFromPassword(pw)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	pm.innerEncryptionKey = innerEncryptionKeyDerivation.key
+	encryptionKey := make([]byte, 32)
+	_, err = rand.Read(encryptionKey)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	encryptionKeyCiphertext, err := encrypt(pm.innerEncryptionKey, string(encryptionKey))
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	macKey := make([]byte, 32)
+	_, err = rand.Read(macKey)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	macKeyCiphertext, err := encrypt(pm.innerEncryptionKey, string(macKey))
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	err = sq.WithTx(pm.superadminDB, func(tx *sql.Tx) error {
+		_, _, err = sq.ExecContext(ctx, tx, sq.SQLite.
+			InsertInto(SUPERADMIN).
+			Valuesx(func(col *sq.Column) error {
+				col.SetInt(SUPERADMIN.ID, 1)
+				col.SetString(SUPERADMIN.PASSWORD_HASH, passwordKeyDerivation.Marshal())
+				col.SetString(SUPERADMIN.ENCRYPTION_KEY_PARAMETERS, innerEncryptionKeyDerivation.MarshalParams())
+				return nil
+			}),
+			0,
+		)
+		if err != nil {
+			return erro.Wrap(err)
+		}
+		ENCRYPTION_KEYS := tables.NEW_ENCRYPTION_KEYS(ctx, "")
+		_, _, err = sq.ExecContext(ctx, tx, sq.SQLite.
+			InsertInto(ENCRYPTION_KEYS).
+			Valuesx(func(col *sq.Column) error {
+				col.SetInt(ENCRYPTION_KEYS.ID, 1)
+				col.SetString(ENCRYPTION_KEYS.KEY_CIPHERTEXT, encryptionKeyCiphertext)
+				return nil
+			}),
+			0,
+		)
+		if err != nil {
+			return erro.Wrap(err)
+		}
+		MAC_KEYS := tables.NEW_MAC_KEYS(ctx, "")
+		_, _, err = sq.ExecContext(ctx, tx, sq.SQLite.
+			InsertInto(MAC_KEYS).
+			Valuesx(func(col *sq.Column) error {
+				col.SetInt(MAC_KEYS.ID, 1)
+				col.SetString(MAC_KEYS.KEY_CIPHERTEXT, macKeyCiphertext)
+				return nil
+			}),
+			0,
+		)
+		if err != nil {
+			return erro.Wrap(err)
+		}
+		return nil
+	})
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	return nil
 }

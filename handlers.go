@@ -56,10 +56,16 @@ func (pm *PageManager) PageManager(next http.Handler) http.Handler {
 	})
 }
 
+const (
+	EditModeOff      = 0
+	EditModeBasic    = 1
+	EditModeAdvanced = 2
+)
+
 func (pm *PageManager) getRoute(ctx context.Context, path string) (Route, error) {
 	var route Route
 	var err error
-	elems := strings.SplitN(path, "/", 3)
+	elems := strings.SplitN(path, "/", 3) // because first character of path is always '/', we ignore the first element
 	if len(elems) >= 2 {
 		head := elems[1]
 		pm.localesMutex.RLock()
@@ -128,7 +134,7 @@ func (pm *PageManager) serveTemplate(w http.ResponseWriter, r *http.Request, rou
 		Page              PageData
 		TemplateVariables map[string]interface{}
 	}
-	t := template.New(strings.TrimPrefix(themeTemplate.HTML[0], "/")).Funcs(pm.funcmap())
+	t := template.New("").Funcs(pm.funcmap())
 	datafolderFS := os.DirFS(pm.datafolder)
 	for _, filename := range themeTemplate.HTML {
 		filename = strings.TrimPrefix(filename, "/")
@@ -137,7 +143,7 @@ func (pm *PageManager) serveTemplate(w http.ResponseWriter, r *http.Request, rou
 			http.Error(w, erro.Sdump(err), http.StatusInternalServerError)
 			return
 		}
-		_, err = t.Parse(string(b))
+		_, err = t.New(filename).Parse(string(b))
 		if err != nil {
 			http.Error(w, erro.Sdump(err), http.StatusInternalServerError)
 			return
@@ -147,15 +153,24 @@ func (pm *PageManager) serveTemplate(w http.ResponseWriter, r *http.Request, rou
 	data := Data{
 		Page: PageData{
 			Ctx:        r.Context(),
-			URL:        r.URL.Path,
-			DataID:     r.URL.Path,
+			URL:        route.URL.String,
+			DataID:     route.URL.String,
 			LocaleCode: route.LocaleCode,
-			EditMode:   r.FormValue("pm-edit") != "",
 			CSSList:    themeTemplate.CSS,
 			JSList:     themeTemplate.JS,
 			CSPList:    themeTemplate.ContentSecurityPolicy,
 		},
 		TemplateVariables: themeTemplate.TemplateVariables,
+	}
+	switch r.FormValue("pm-edit") {
+	case "basic":
+		data.Page.EditMode = EditModeBasic
+	case "advanced":
+		data.Page.EditMode = EditModeAdvanced
+	}
+	if data.Page.EditMode == EditModeBasic {
+		data.Page.CSSList = append(data.Page.CSSList, "/pm-plugins/pagemanager/editmode.css")
+		data.Page.JSList = append(data.Page.JSList, "/pm-plugins/pagemanager/editmode.js")
 	}
 	err := t.Execute(w, data)
 	if err != nil {

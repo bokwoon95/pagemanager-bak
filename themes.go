@@ -14,6 +14,13 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+// /pm-themes/plainsimple/index.css
+// /pm-themes/plainsimple/index.pm-sha256-RFWPLDbv2BY+rCkDzsE+0fr8ylGr2R2faWMhq4lfEQc=.css
+// /pm-themes/plainsimple/data
+// /pm-themes/plainsimple/data.pm-sha256-RFWPLDbv2BY+rCkDzsE+0fr8ylGr2R2faWMhq4lfEQc=
+// /pm-themes/plainsimple/haha.meh
+// /pm-themes/plainsimple/haha.pm-sha256-RFWPLDbv2BY+rCkDzsE+0fr8ylGr2R2faWMhq4lfEQc=.meh
+
 type themeTemplate struct {
 	HTML                  []string
 	CSS                   []string

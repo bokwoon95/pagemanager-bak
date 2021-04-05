@@ -23,6 +23,7 @@ const (
 	Lresults     LogFlag = 0b1000  // Show the first 5 results if applicable. Lmultiline must be enabled.
 	Lcolor       LogFlag = 0b10000 // Colorize log output
 	Lverbose     LogFlag = Lmultiline | Lcaller | Lresults | Lcolor
+	Lcompact     LogFlag = Linterpolate | Lcaller | Lcolor
 )
 
 // ExecFlag is a flag that affects the behavior of Exec.
