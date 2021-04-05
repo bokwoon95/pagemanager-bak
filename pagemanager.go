@@ -1,6 +1,7 @@
 package pagemanager
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -8,7 +9,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html/template"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -26,7 +29,7 @@ var flagDatafolder = flag.String("pm-datafolder", "", "")
 var flagSuperadminFolder = flag.String("pm-superadmin", "", "")
 var flagSuperadminSetup = flag.String("pm-superadmin-setup", "", "")
 var bufpool = sync.Pool{
-	New: func() interface{} { return new(strings.Builder) },
+	New: func() interface{} { return new(bytes.Buffer) },
 }
 
 func init() {
@@ -51,6 +54,7 @@ type PageManager struct {
 	dataDB              *sql.DB
 	superadminDB        *sql.DB
 	innerEncryptionKey  []byte // key-stretched from user's low-entropy password
+	innerMACKey         []byte // key-stretched from user's low-entropy password
 	localesMutex        *sync.RWMutex
 	locales             map[string]string
 }
@@ -523,6 +527,11 @@ superadmin password: `)
 		return erro.Wrap(err)
 	}
 	pm.innerEncryptionKey = innerEncryptionKeyDerivation.key
+	innerMACKeyDerivation, err := deriveKeyFromPassword(pw)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	pm.innerMACKey = innerMACKeyDerivation.key
 	encryptionKey := make([]byte, 32)
 	_, err = rand.Read(encryptionKey)
 	if err != nil {
@@ -548,6 +557,7 @@ superadmin password: `)
 				col.SetInt(SUPERADMIN.ID, 1)
 				col.SetString(SUPERADMIN.PASSWORD_HASH, passwordKeyDerivation.Marshal())
 				col.SetString(SUPERADMIN.ENCRYPTION_KEY_PARAMETERS, innerEncryptionKeyDerivation.MarshalParams())
+				col.SetString(SUPERADMIN.MAC_KEY_PARAMETERS, innerMACKeyDerivation.MarshalParams())
 				return nil
 			}),
 			0,
@@ -586,5 +596,41 @@ superadmin password: `)
 	if err != nil {
 		return erro.Wrap(err)
 	}
+	return nil
+}
+
+func (pm *PageManager) parseTemplates(fsys fs.FS, file string, files ...string) (*template.Template, error) {
+	b, err := fs.ReadFile(fsys, file)
+	if err != nil {
+		return nil, erro.Wrap(err)
+	}
+	t, err := template.New(file).Funcs(pm.funcmap()).Parse(string(b))
+	if err != nil {
+		return nil, erro.Wrap(err)
+	}
+	for _, file := range files {
+		b, err = fs.ReadFile(fsys, file)
+		if err != nil {
+			return nil, erro.Wrap(err)
+		}
+		t, err = t.New(file).Parse(string(b))
+		if err != nil {
+			return nil, erro.Wrap(err)
+		}
+	}
+	return t, nil
+}
+
+func executeTemplate(t *template.Template, w http.ResponseWriter, data interface{}) error {
+	buf := bufpool.Get().(*bytes.Buffer)
+	defer func() {
+		buf.Reset()
+		bufpool.Put(buf)
+	}()
+	err := t.Execute(buf, data)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	buf.WriteTo(w)
 	return nil
 }

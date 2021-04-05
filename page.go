@@ -1,6 +1,7 @@
 package pagemanager
 
 import (
+	"bytes"
 	"context"
 	"database/sql/driver"
 	"encoding/json"
@@ -8,7 +9,6 @@ import (
 	"html/template"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/bokwoon95/erro"
@@ -25,10 +25,18 @@ type PageData struct {
 	CSSAssets  []Asset
 	JSAssets   []Asset
 	CSP        map[string][]string
+	JSON       map[string]interface{}
+}
+
+func NewPage() PageData {
+	return PageData{
+		CSP:  make(map[string][]string),
+		JSON: make(map[string]interface{}),
+	}
 }
 
 func (pg PageData) CSS() template.HTML {
-	buf := bufpool.Get().(*strings.Builder)
+	buf := bufpool.Get().(*bytes.Buffer)
 	defer func() {
 		buf.Reset()
 		bufpool.Put(buf)
@@ -47,12 +55,24 @@ func (pg PageData) CSS() template.HTML {
 	return template.HTML(buf.String())
 }
 
-func (pg PageData) JS() template.HTML {
-	buf := bufpool.Get().(*strings.Builder)
+func (pg PageData) JS() (template.HTML, error) {
+	buf := bufpool.Get().(*bytes.Buffer)
 	defer func() {
 		buf.Reset()
 		bufpool.Put(buf)
 	}()
+	jsonData, err := json.Marshal(pg.JSON)
+	if err != nil {
+		return "", erro.Wrap(err)
+	}
+	if len(jsonData) > 0 {
+		if buf.Len() > 0 {
+			buf.WriteString("\n")
+		}
+		buf.WriteString(`<script data-pm-json type="application/json">`)
+		buf.Write(jsonData)
+		buf.WriteString(`</script>`)
+	}
 	for _, asset := range pg.JSAssets {
 		if asset.Inline {
 			continue
@@ -64,7 +84,7 @@ func (pg PageData) JS() template.HTML {
 		buf.WriteString(asset.Path)
 		buf.WriteString(`"></script>`)
 	}
-	return template.HTML(buf.String())
+	return template.HTML(buf.String()), nil
 }
 
 func (pg PageData) ContentSecurityPolicy() template.HTML {
@@ -138,6 +158,14 @@ func (ns NullString) String() string {
 
 func safeHTML(v interface{}) template.HTML {
 	return template.HTML(asString(v))
+}
+
+func jsonify(v interface{}) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err.Error()
+	}
+	return string(b)
 }
 
 func (pm *PageManager) pmGetValue(pg PageData, key string, opts ...PageDataOption) (NullString, error) {
@@ -223,6 +251,7 @@ func (pm *PageManager) pmGetRows(pg PageData, key string, opts ...PageDataOption
 
 func (pm *PageManager) funcmap() map[string]interface{} {
 	return map[string]interface{}{
+		"jsonify":    jsonify,
 		"safeHTML":   safeHTML,
 		"pmGetValue": pm.pmGetValue,
 		"pmGetRows":  pm.pmGetRows,

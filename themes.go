@@ -37,7 +37,7 @@ type themeTemplate struct {
 
 type theme struct {
 	err            error  // any error encountered when parsing theme-config.js
-	path           string // path to the theme folder in the "themes" folder
+	path           string // path to the theme folder in the "pm-themes" folder
 	name           string
 	description    string
 	fallbackAssets map[string]string

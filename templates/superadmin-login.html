@@ -3,8 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" type="text/css" href="/pm-plugins/pagemanager/tachyons.css">
-  <link rel="stylesheet" type="text/css" href="/pm-plugins/pagemanager/style.css">
   {{ .Page.CSS }}
   <title>Superadmin Login</title>
 </head>
@@ -13,10 +11,8 @@
   <div id="login">
     <h1>Superadmin Login</h1>
     <form id="loginform" name="loginform" method="POST" action="" class="bg-white">
-      <div class="mv2"><label>Username or Email Address:</label></div>
-      <div><input type="text" id="pm-user-login" name="pm-user-login" class="bg-near-white pa2 w-100"></div>
       <div class="mv2 pt2"><label>Password:</label></div>
-      <div><input type="text" id="pm-user-password" name="pm-user-password" class="bg-near-white pa2 w-100"></div>
+      <div><input type="text" id="pm-superadmin-password" name="pm-superadmin-password" class="bg-near-white pa2 w-100"></div>
       <div class="mv2 pt2">
         <input id="remember-me" type="checkbox" class="pointer">
         <label for="remember-me" class="ml1 pointer">Remember Me</label>

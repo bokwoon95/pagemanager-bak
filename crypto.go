@@ -245,3 +245,25 @@ func (pm *PageManager) Decrypt(ciphertext string) (plaintext string, err error) 
 	}
 	return "", erro.Wrap(fmt.Errorf("decryption error"))
 }
+
+func makeMAC(key []byte, data string) (mac string) {
+	b := blake2b.Sum512([]byte(key))
+	h, _ := blake2b.New512(b[:])
+	h.Reset()
+	h.Write([]byte(data))
+	sum := h.Sum(nil)
+	return base64.RawURLEncoding.EncodeToString(sum)
+}
+
+func verifyMAC(key []byte, data string, mac string) bool {
+	b := blake2b.Sum512([]byte(key))
+	h, _ := blake2b.New512(b[:])
+	h.Reset()
+	h.Write([]byte(data))
+	computedSum := h.Sum(nil)
+	providedSum, err := base64.RawURLEncoding.DecodeString(mac)
+	if err != nil {
+		return false
+	}
+	return subtle.ConstantTimeCompare(computedSum, providedSum) == 1
+}

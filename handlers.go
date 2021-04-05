@@ -22,7 +22,7 @@ import (
 func (pm *PageManager) PageManager(next http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/", next)
-	mux.HandleFunc("/pm-login", pm.loginHandler)
+	mux.HandleFunc("/pm-superadmin", pm.superadminLogin)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/pm-themes/") ||
 			strings.HasPrefix(r.URL.Path, "/pm-images/") ||
@@ -258,8 +258,42 @@ func (pm *PageManager) serveFile(w http.ResponseWriter, r *http.Request, name st
 	http.ServeContent(w, r, name, info.ModTime(), fseeker)
 }
 
-func (pm *PageManager) loginHandler(w http.ResponseWriter, r *http.Request) {
+// sha256-JTm1pbrQf0HAbR27OuEt4ctbhU5wBu8sx03KF+37i5Y=
+
+func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 	type Data struct {
 		Page PageData
 	}
+	switch r.Method {
+	case "GET":
+		data := Data{Page: NewPage()}
+		data.Page.JSON["yeet"] = 42069
+		data.Page.CSSAssets = []Asset{
+			{Path: "/pm-plugins/pagemanager/tachyons.css"},
+			{Path: "/pm-plugins/pagemanager/style.css"},
+		}
+		data.Page.JSAssets = []Asset{
+			{Path: "/pm-plugins/pagemanager/pmJSON.js"},
+		}
+		t, err := pm.parseTemplates(templatesFS, "superadmin-login.html")
+		if err != nil {
+			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
+			return
+		}
+		err = executeTemplate(t, w, data)
+		if err != nil {
+			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
+			return
+		}
+	case "POST":
+		http.Redirect(w, r, LocaleURL(r), http.StatusMovedPermanently)
+	}
+}
+
+func LocaleURL(r *http.Request) string {
+	localeCode, _ := r.Context().Value(LocaleCodeKey{}).(string)
+	if localeCode == "" {
+		return r.URL.Path
+	}
+	return "/" + localeCode + r.URL.Path
 }
