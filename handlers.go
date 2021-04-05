@@ -20,6 +20,9 @@ import (
 )
 
 func (pm *PageManager) PageManager(next http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/", next)
+	mux.HandleFunc("/pm-login", pm.loginHandler)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/pm-themes/") ||
 			strings.HasPrefix(r.URL.Path, "/pm-images/") ||
@@ -32,14 +35,17 @@ func (pm *PageManager) PageManager(next http.Handler) http.Handler {
 			http.Error(w, erro.Sdump(err), http.StatusInternalServerError)
 			return
 		}
+		r2 := &http.Request{} // r2 is like r, but with the localeCode stripped from the URL and injected into the request context
+		*r2 = *r
+		r2 = r2.WithContext(context.WithValue(r2.Context(), LocaleCodeKey{}, route.LocaleCode))
+		r2.URL = &url.URL{}
+		*r2.URL = *r.URL
+		r2.URL.Path = route.URL.String
 		if route.Disabled.Valid && route.Disabled.Bool {
 			http.NotFound(w, r)
 			return
 		}
 		if route.HandlerURL.Valid {
-			r2 := &http.Request{}
-			*r2 = *r
-			r2.URL = &url.URL{}
 			r2.URL.Path = route.HandlerURL.String
 			next.ServeHTTP(w, r2)
 			return
@@ -49,10 +55,10 @@ func (pm *PageManager) PageManager(next http.Handler) http.Handler {
 			return
 		}
 		if route.ThemePath.Valid && route.Template.Valid {
-			pm.serveTemplate(w, r, route)
+			pm.serveTemplate(w, r2, route)
 			return
 		}
-		next.ServeHTTP(w, r)
+		mux.ServeHTTP(w, r2)
 	})
 }
 
@@ -61,6 +67,8 @@ const (
 	EditModeBasic    = 1
 	EditModeAdvanced = 2
 )
+
+type LocaleCodeKey struct{}
 
 func (pm *PageManager) getRoute(ctx context.Context, path string) (Route, error) {
 	var route Route
@@ -105,6 +113,10 @@ func (pm *PageManager) getRoute(ctx context.Context, path string) (Route, error)
 	)
 	if err != nil {
 		return route, erro.Wrap(err)
+	}
+	if !route.URL.Valid {
+		route.URL.String = path
+		route.URL.Valid = true
 	}
 	return route, nil
 }
@@ -244,4 +256,10 @@ func (pm *PageManager) serveFile(w http.ResponseWriter, r *http.Request, name st
 		return
 	}
 	http.ServeContent(w, r, name, info.ModTime(), fseeker)
+}
+
+func (pm *PageManager) loginHandler(w http.ResponseWriter, r *http.Request) {
+	type Data struct {
+		Page PageData
+	}
 }

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Configure PageManager</title>
+</head>
+<body>
+  <h1>Please configure PageManager to proceed</h1>
+  <form method="POST" action="">
+    {{ if and (not .pm_datafolder) .datafolder }}
+    <div>
+      <span>datafolder</span>
+      <input type="text" name="datafolder" value="{{ .datafolder }}" size="50">
+      {{ if .datafolder_error }}
+      <span class="dark-red">{{ .datafolder_error }}</span>
+      {{ end }}
+    </div>
+    {{ end }}
+    {{ if and (not .pm_credentialsfile) .credentialsfile }}
+    <div>
+      <span>credentialsfile</span>
+      <input type="text" name="credentialsfile" value="{{ .credentialsfile }}" size="50">
+      {{ if .credentialsfile_error }}
+      <span class="dark-red">{{ .credentialsfile_error }}</span>
+      {{ end }}
+    </div>
+    {{ end }}
+    {{ if or (not .pm_credentialsfile) (not .superadmin_exists) }}
+    <div>
+      <span>superadmin password</span>
+      <input type="text" name="superadminpassword" size="50">
+    </div>
+    {{ end }}
+    <button type="submit">submit</button>
+  </form>
+  <script src="/pm-plugins/pagemanager/config_mode.js"></script>
+</body>
+</html>

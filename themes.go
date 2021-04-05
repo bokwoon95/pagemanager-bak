@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/bokwoon95/erro"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/dop251/goja"
 	"github.com/mitchellh/mapstructure"
 )
@@ -85,6 +86,13 @@ func getThemes(datafolder string) (themes map[string]theme, fallbackAssetsIndex 
 			t.err = err
 			return fs.SkipDir
 		}
+		t3 := theme3{
+			path:           strings.TrimPrefix(cwd, "/pm-themes/"),
+			fallbackAssets: make(map[string]string),
+			themeTemplates: make(map[string]themeTemplate2),
+		}
+		t3.Unmarshal(res.Export())
+		spew.Dump(t3)
 		t.name = t2.Name
 		t.description = t2.Description
 		t.fallbackAssets = make(map[string]string)
@@ -130,4 +138,121 @@ func getThemes(datafolder string) (themes map[string]theme, fallbackAssetsIndex 
 		return themes, fallbackAssetsIndex, erro.Wrap(err)
 	}
 	return themes, fallbackAssetsIndex, nil
+}
+
+type asset struct {
+	path   string
+	data   []byte
+	hash   [32]byte
+	inline bool
+}
+
+type themeTemplate2 struct {
+	HTML                  []string
+	CSS                   []asset
+	JS                    []asset
+	TemplateVariables     map[string]interface{}
+	ContentSecurityPolicy map[string][]string
+}
+
+type theme3 struct {
+	err            error  // any error encountered when parsing theme-config.js
+	path           string // path to the theme folder in the "pm-themes" folder
+	name           string
+	description    string
+	fallbackAssets map[string]string
+	themeTemplates map[string]themeTemplate2
+}
+
+func (t *theme3) Unmarshal(data interface{}) {
+	data2, ok := data.(map[string]interface{})
+	if !ok {
+		return
+	}
+	themePath := "/pm-themes/" + t.path
+	t.name, _ = data2["Name"].(string)
+	t.description, _ = data2["Description"].(string)
+	fallbackAssets, _ := data2["FallbackAssets"].(map[string]interface{})
+	for asset, __fallback__ := range fallbackAssets {
+		fallback, ok := __fallback__.(string)
+		if !ok {
+			continue
+		}
+		if strings.HasPrefix(fallback, "/") {
+			t.fallbackAssets[asset] = fallback
+		} else {
+			t.fallbackAssets[asset] = themePath + "/" + fallback
+		}
+	}
+	templates, _ := data2["Templates"].(map[string]interface{})
+	for templateName, __template__ := range templates {
+		tt := themeTemplate2{
+			TemplateVariables:     make(map[string]interface{}),
+			ContentSecurityPolicy: make(map[string][]string),
+		}
+		template, _ := __template__.(map[string]interface{})
+		HTMLs, _ := template["HTML"].([]interface{})
+		for _, __html__ := range HTMLs {
+			html, ok := __html__.(string)
+			if !ok {
+				continue
+			}
+			if strings.HasPrefix(html, "/") {
+				tt.HTML = append(tt.HTML, html)
+			} else {
+				tt.HTML = append(tt.HTML, themePath+"/"+html)
+			}
+		}
+		CSSs, _ := template["CSS"].([]interface{})
+		for _, __css__ := range CSSs {
+			var a asset
+			switch css := __css__.(type) {
+			case string:
+				if strings.HasPrefix(css, "/") {
+					a.path = css
+				} else {
+					a.path = themePath + "/" + css
+				}
+				tt.CSS = append(tt.CSS, a)
+			case map[string]interface{}:
+				a.path, _ = css["Path"].(string)
+				a.inline, _ = css["Inline"].(bool)
+				tt.CSS = append(tt.CSS, a)
+			default:
+				continue
+			}
+		}
+		JSs, _ := template["JS"].([]interface{})
+		for _, __js__ := range JSs {
+			var a asset
+			switch js := __js__.(type) {
+			case string:
+				if strings.HasPrefix(js, "/") {
+					a.path = js
+				} else {
+					a.path = themePath + "/" + js
+				}
+				tt.JS = append(tt.JS, a)
+			case map[string]interface{}:
+				a.path, _ = js["Path"].(string)
+				a.inline, _ = js["Inline"].(bool)
+				tt.JS = append(tt.JS, a)
+			default:
+				continue
+			}
+		}
+		tt.TemplateVariables, _ = template["TemplateVariables"].(map[string]interface{})
+		contentSecurityPolicy, _ := template["ContentSecurityPolicy"].(map[string]interface{})
+		for name, __policies__ := range contentSecurityPolicy {
+			policies, _ := __policies__.([]interface{})
+			for _, __policy__ := range policies {
+				policy, ok := __policy__.(string)
+				if !ok {
+					continue
+				}
+				tt.ContentSecurityPolicy[name] = append(tt.ContentSecurityPolicy[name], policy)
+			}
+		}
+		t.themeTemplates[templateName] = tt
+	}
 }
