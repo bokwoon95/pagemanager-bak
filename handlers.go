@@ -168,9 +168,9 @@ func (pm *PageManager) serveTemplate(w http.ResponseWriter, r *http.Request, rou
 			URL:        route.URL.String,
 			DataID:     route.URL.String,
 			LocaleCode: route.LocaleCode,
-			CSSList:    themeTemplate.CSS,
-			JSList:     themeTemplate.JS,
-			CSPList:    themeTemplate.ContentSecurityPolicy,
+			CSSAssets:  themeTemplate.CSS,
+			JSAssets:   themeTemplate.JS,
+			CSP:        themeTemplate.ContentSecurityPolicy,
 		},
 		TemplateVariables: themeTemplate.TemplateVariables,
 	}
@@ -181,8 +181,8 @@ func (pm *PageManager) serveTemplate(w http.ResponseWriter, r *http.Request, rou
 		data.Page.EditMode = EditModeAdvanced
 	}
 	if data.Page.EditMode == EditModeBasic {
-		data.Page.CSSList = append(data.Page.CSSList, "/pm-plugins/pagemanager/editmode.css")
-		data.Page.JSList = append(data.Page.JSList, "/pm-plugins/pagemanager/editmode.js")
+		data.Page.CSSAssets = append(data.Page.CSSAssets, Asset{Path: "/pm-plugins/pagemanager/editmode.css"})
+		data.Page.JSAssets = append(data.Page.JSAssets, Asset{Path: "/pm-plugins/pagemanager/editmode.js"})
 	}
 	err := t.Execute(w, data)
 	if err != nil {

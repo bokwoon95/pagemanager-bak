@@ -22,9 +22,9 @@ type PageData struct {
 	DataID     string
 	LocaleCode string
 	EditMode   int
-	CSSList    []string
-	JSList     []string
-	CSPList    map[string][]string
+	CSSAssets  []Asset
+	JSAssets   []Asset
+	CSP        map[string][]string
 }
 
 func (pg PageData) CSS() template.HTML {
@@ -33,12 +33,15 @@ func (pg PageData) CSS() template.HTML {
 		buf.Reset()
 		bufpool.Put(buf)
 	}()
-	for _, name := range pg.CSSList {
+	for _, asset := range pg.CSSAssets {
+		if asset.Inline {
+			continue
+		}
 		if buf.Len() > 0 {
 			buf.WriteString("\n")
 		}
 		buf.WriteString(`<link rel="stylesheet" type="text/css" href="`)
-		buf.WriteString(name)
+		buf.WriteString(asset.Path)
 		buf.WriteString(`">`)
 	}
 	return template.HTML(buf.String())
@@ -50,19 +53,22 @@ func (pg PageData) JS() template.HTML {
 		buf.Reset()
 		bufpool.Put(buf)
 	}()
-	for _, name := range pg.JSList {
+	for _, asset := range pg.JSAssets {
+		if asset.Inline {
+			continue
+		}
 		if buf.Len() > 0 {
 			buf.WriteString("\n")
 		}
 		buf.WriteString(`<script src="`)
-		buf.WriteString(name)
+		buf.WriteString(asset.Path)
 		buf.WriteString(`"></script>`)
 	}
 	return template.HTML(buf.String())
 }
 
 func (pg PageData) ContentSecurityPolicy() template.HTML {
-	return template.HTML(fmt.Sprint(pg.CSPList))
+	return template.HTML(fmt.Sprint(pg.CSP))
 }
 
 type PageDataOption func(*PageData)

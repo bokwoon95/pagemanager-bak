@@ -10,9 +10,7 @@ import (
 	"strings"
 
 	"github.com/bokwoon95/erro"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/dop251/goja"
-	"github.com/mitchellh/mapstructure"
 )
 
 // /pm-themes/plainsimple/index.css
@@ -22,10 +20,17 @@ import (
 // /pm-themes/plainsimple/haha.meh
 // /pm-themes/plainsimple/haha.pm-sha256-RFWPLDbv2BY+rCkDzsE+0fr8ylGr2R2faWMhq4lfEQc=.meh
 
+type Asset struct {
+	Path   string
+	Data   []byte
+	Hash   [32]byte
+	Inline bool
+}
+
 type themeTemplate struct {
 	HTML                  []string
-	CSS                   []string
-	JS                    []string
+	CSS                   []Asset
+	JS                    []Asset
 	TemplateVariables     map[string]interface{}
 	ContentSecurityPolicy map[string][]string
 }
@@ -37,13 +42,6 @@ type theme struct {
 	description    string
 	fallbackAssets map[string]string
 	themeTemplates map[string]themeTemplate
-}
-
-type theme2 struct {
-	Name           string
-	Description    string
-	FallbackAssets map[string]string
-	Templates      map[string]themeTemplate
 }
 
 func getThemes(datafolder string) (themes map[string]theme, fallbackAssetsIndex map[string]string, err error) {
@@ -69,10 +67,11 @@ func getThemes(datafolder string) (themes map[string]theme, fallbackAssetsIndex 
 		if runtime.GOOS == "windows" {
 			cwd = strings.ReplaceAll(cwd, `\`, `/`) // theme_path is always stored with unix-style forward slashes
 		}
-		t := theme{path: strings.TrimPrefix(cwd, "/pm-themes/")}
-		defer func() {
-			themes[t.path] = t
-		}()
+		t := theme{
+			path:           strings.TrimPrefix(cwd, "/pm-themes/"),
+			fallbackAssets: make(map[string]string),
+			themeTemplates: make(map[string]themeTemplate),
+		}
 		vm := goja.New()
 		vm.Set("$THEME_PATH", cwd+"/")
 		res, err := vm.RunString("(function(){" + string(b) + "})()")
@@ -80,58 +79,14 @@ func getThemes(datafolder string) (themes map[string]theme, fallbackAssetsIndex 
 			t.err = err
 			return fs.SkipDir
 		}
-		var t2 theme2
-		err = mapstructure.Decode(res.Export(), &t2)
-		if err != nil {
-			t.err = err
-			return fs.SkipDir
+		t.Unmarshal(res.Export())
+		for asset, _ := range t.fallbackAssets {
+			if _, ok := fallbackAssetsIndex[asset]; ok {
+				return erro.Wrap(fmt.Errorf(`fallback already declared for asset "%s"`, asset))
+			}
+			fallbackAssetsIndex[asset] = t.path
 		}
-		t3 := theme3{
-			path:           strings.TrimPrefix(cwd, "/pm-themes/"),
-			fallbackAssets: make(map[string]string),
-			themeTemplates: make(map[string]themeTemplate2),
-		}
-		t3.Unmarshal(res.Export())
-		spew.Dump(t3)
-		t.name = t2.Name
-		t.description = t2.Description
-		t.fallbackAssets = make(map[string]string)
-		for name, fallback := range t2.FallbackAssets {
-			if !strings.HasPrefix(fallback, "/") {
-				fallback = cwd + "/" + fallback
-			}
-			t.fallbackAssets[name] = fallback
-			fallbackAssetsIndex[name] = t.path
-		}
-		t.themeTemplates = make(map[string]themeTemplate)
-		for name, tt2 := range t2.Templates {
-			tt := themeTemplate{
-				HTML:                  make([]string, len(tt2.HTML)),
-				CSS:                   make([]string, len(tt2.CSS)),
-				JS:                    make([]string, len(tt2.JS)),
-				TemplateVariables:     tt2.TemplateVariables,
-				ContentSecurityPolicy: tt2.ContentSecurityPolicy,
-			}
-			for i, path := range tt2.HTML {
-				if !strings.HasPrefix(path, "/") {
-					path = cwd + "/" + path
-				}
-				tt.HTML[i] = path
-			}
-			for i, path := range tt2.CSS {
-				if !strings.HasPrefix(path, "/") {
-					path = cwd + "/" + path
-				}
-				tt.CSS[i] = path
-			}
-			for i, path := range tt2.JS {
-				if !strings.HasPrefix(path, "/") {
-					path = cwd + "/" + path
-				}
-				tt.JS[i] = path
-			}
-			t.themeTemplates[name] = tt
-		}
+		themes[t.path] = t
 		return fs.SkipDir
 	})
 	if err != nil {
@@ -140,31 +95,7 @@ func getThemes(datafolder string) (themes map[string]theme, fallbackAssetsIndex 
 	return themes, fallbackAssetsIndex, nil
 }
 
-type asset struct {
-	path   string
-	data   []byte
-	hash   [32]byte
-	inline bool
-}
-
-type themeTemplate2 struct {
-	HTML                  []string
-	CSS                   []asset
-	JS                    []asset
-	TemplateVariables     map[string]interface{}
-	ContentSecurityPolicy map[string][]string
-}
-
-type theme3 struct {
-	err            error  // any error encountered when parsing theme-config.js
-	path           string // path to the theme folder in the "pm-themes" folder
-	name           string
-	description    string
-	fallbackAssets map[string]string
-	themeTemplates map[string]themeTemplate2
-}
-
-func (t *theme3) Unmarshal(data interface{}) {
+func (t *theme) Unmarshal(data interface{}) {
 	data2, ok := data.(map[string]interface{})
 	if !ok {
 		return
@@ -186,7 +117,7 @@ func (t *theme3) Unmarshal(data interface{}) {
 	}
 	templates, _ := data2["Templates"].(map[string]interface{})
 	for templateName, __template__ := range templates {
-		tt := themeTemplate2{
+		tt := themeTemplate{
 			TemplateVariables:     make(map[string]interface{}),
 			ContentSecurityPolicy: make(map[string][]string),
 		}
@@ -205,18 +136,18 @@ func (t *theme3) Unmarshal(data interface{}) {
 		}
 		CSSs, _ := template["CSS"].([]interface{})
 		for _, __css__ := range CSSs {
-			var a asset
+			var a Asset
 			switch css := __css__.(type) {
 			case string:
 				if strings.HasPrefix(css, "/") {
-					a.path = css
+					a.Path = css
 				} else {
-					a.path = themePath + "/" + css
+					a.Path = themePath + "/" + css
 				}
 				tt.CSS = append(tt.CSS, a)
 			case map[string]interface{}:
-				a.path, _ = css["Path"].(string)
-				a.inline, _ = css["Inline"].(bool)
+				a.Path, _ = css["Path"].(string)
+				a.Inline, _ = css["Inline"].(bool)
 				tt.CSS = append(tt.CSS, a)
 			default:
 				continue
@@ -224,18 +155,18 @@ func (t *theme3) Unmarshal(data interface{}) {
 		}
 		JSs, _ := template["JS"].([]interface{})
 		for _, __js__ := range JSs {
-			var a asset
+			var a Asset
 			switch js := __js__.(type) {
 			case string:
 				if strings.HasPrefix(js, "/") {
-					a.path = js
+					a.Path = js
 				} else {
-					a.path = themePath + "/" + js
+					a.Path = themePath + "/" + js
 				}
 				tt.JS = append(tt.JS, a)
 			case map[string]interface{}:
-				a.path, _ = js["Path"].(string)
-				a.inline, _ = js["Inline"].(bool)
+				a.Path, _ = js["Path"].(string)
+				a.Inline, _ = js["Inline"].(bool)
 				tt.JS = append(tt.JS, a)
 			default:
 				continue
