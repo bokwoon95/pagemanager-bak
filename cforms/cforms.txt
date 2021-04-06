@@ -1,0 +1,42 @@
+type SuperadminLoginData struct {
+    Password   string
+    RememberMe bool
+}
+
+func (d *SuperadminLoginData) Form(form *xform.Form) {
+    h, attr, txt = xform.H, xform.Attr, xform.Txt
+    form.Attr("#loginform.loginform.bg-white", attr{"method": "POST", "action": ""})
+    password := form.Text("pm-superadmin-password", d.Password, "#pm-superadmin-password.pm-superadmin-password", nil)
+    rememberMe := form.Checkbox("remember-me", false, "#remember-me.remember-me", nil)
+    errs := h("div", nil)
+    for _, err := range password.Errs {
+        errs.H("div", nil, txt{err.Error()})
+    }
+    form.H("div", nil, errs)
+    form.H("div.mv2.pt2", nil, h("label", attr{"for":"pm-superadmin-password"}, txt{"Password"}))
+    form.H("div", nil, password)
+    form.H("div.mv2.pt2", nil, rememberMeInput, h("label.ml1.pointer", attr{"for":"remember-me"}))
+    form.H("div.mv2.pt2", nil, h("button", attr{"type":"submit"}, txt{"Log In"}))
+    form.Unmarshal(func() {
+        d.Password = password.String(xforms.NotEmpty, xforms.ProperPassword)
+        d.RememberMe = rememberMe.Bool()
+        if d.Password != d.PasswordConfirmation {
+            form.Err(fmt.Errorf("password not match"))
+        }
+    })
+}
+
+xforms
+A form validation and rendering library for Go
+
+GET:
+    data.Form, err = xforms.MarshalForm(r, d.Form)
+    if err != nil {
+    }
+    t.Execute(w, data)
+POST:
+    err = xforms.UnmarshalForm(r, d.Form)
+    if err != nil {
+        xforms.Redirect(w, r, r.URL.Path, err)
+        return
+    }

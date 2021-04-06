@@ -1,6 +1,7 @@
 package cforms
 
 import (
+	"html/template"
 	"net/http"
 	"strings"
 
@@ -51,6 +52,14 @@ func H(selector string, attributes map[string]string, children ...Element) HTMLE
 	return HTMLElement{selector: selector, attributes: attributes, children: children}
 }
 
+func (el *HTMLElement) H(selector string, attributes map[string]string, children ...Element) {
+	if selector == "" && attributes == nil {
+		el.children = append(el.children, children...)
+		return
+	}
+	el.children = append(el.children, H(selector, attributes, children...))
+}
+
 func (el HTMLElement) AppendHTML(buf *strings.Builder) error {
 	s, err := parseSelector(el.selector)
 	if err != nil {
@@ -94,12 +103,13 @@ const (
 	ModeUnmarshal   Mode = 1
 )
 
+type htmlElement = HTMLElement
+
 type Form struct {
-	Mode       Mode
-	r          *http.Request
-	selector   string
-	attributes map[string]string
-	elements   []Element
+	htmlElement
+	Mode Mode
+	r    *http.Request
+	errs []error
 }
 
 func (f *Form) Attrs(selector string, attributes map[string]string) {
@@ -114,6 +124,18 @@ func (f *Form) H(selector string, attributes map[string]string, children ...Elem
 	if f.Mode == ModeUnmarshal {
 		return
 	}
+	f.htmlElement.H(selector, attributes, children...)
+}
+
+func (f *Form) Err(err error) {
+	f.errs = append(f.errs, err)
+}
+
+func (f *Form) Unmarshal(fn func()) {
+	if f.Mode == ModeFormbuilder {
+		return
+	}
+	fn()
 }
 
 type HTMLInputElement struct {
@@ -121,6 +143,7 @@ type HTMLInputElement struct {
 	name         string
 	defaultValue string
 	values       []string
+	errs         []error
 }
 
 func (el HTMLInputElement) AppendHTML(buf *strings.Builder) error {
@@ -145,4 +168,17 @@ type FileInputElement struct {
 
 func (f *Form) Text(name string, defaultValue string, selector string, attributes map[string]string, validators ...func(interface{}) error) StringInputElement {
 	return StringInputElement{}
+}
+
+func MarshalForm(r *http.Request, fn func(*Form)) (template.HTML, error) {
+	return "", nil
+}
+
+func UnmarshalForm(r *http.Request, fn func(*Form)) error {
+	return nil
+}
+
+// Redirect encode the errors into a cookie that would be retrieved by UnmarshalForm in a subsequent request
+func Redirect(w http.ResponseWriter, r *http.Request, url string, err error) {
+	http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
