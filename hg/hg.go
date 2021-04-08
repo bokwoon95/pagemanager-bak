@@ -16,6 +16,8 @@ var singletonElements = map[string]struct{}{
 	"LINK": {}, "META": {}, "PARAM": {}, "SOURCE": {}, "TRACK": {}, "WBR": {},
 }
 
+const Enabled = "\x00"
+
 var sanitizer = func() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
 	p.AllowStyling()

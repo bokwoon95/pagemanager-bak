@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+
+	"github.com/bokwoon95/erro"
 )
 
 type FormMode int
@@ -15,7 +17,7 @@ const (
 )
 
 type FormErrors struct {
-	inputErrors  map[string]error
+	inputErrors  map[string][]error
 	customErrors []error
 }
 
@@ -86,6 +88,24 @@ func MarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) (templa
 }
 
 func UnmarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) error {
+	err := r.ParseForm()
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	form := &Form{
+		selector: "form",
+		mode:     FormModeUnmarshal,
+		request:  r,
+	}
+	fn(form)
+	return form.errors
+}
+
+func UnmarshalMultipartForm(w http.ResponseWriter, r *http.Request, fn func(*Form), maxMemory int64) error {
+	err := r.ParseMultipartForm(maxMemory)
+	if err != nil {
+		return erro.Wrap(err)
+	}
 	form := &Form{
 		selector: "form",
 		mode:     FormModeUnmarshal,
