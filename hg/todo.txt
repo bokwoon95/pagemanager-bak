@@ -1,0 +1,35 @@
+var form hg.Form
+form.Set("", hg.Attr{})
+form.Append("div", nil, hg.H("fieldset", nil))
+formHTML := hg.Marshal(w, r, form)
+formHTML := hg.MarshalForm(w, r, formfunc)
+
+<form method="post" action="/Tests/Post/">
+    <fieldset>
+        <legend>What is Your Favorite Pet?</legend>
+        <input type="checkbox" name="favorite_pet" value="Cats">Cats<br>
+        <input type="checkbox" name="favorite_pet" value="Dogs">Dogs<br>
+        <input type="checkbox" name="favorite_pet" value="Birds">Birds<br>
+        <br>
+        <input type="submit" value="Submit now" />
+    </fieldset>
+</form>
+
+func Form(form *hg.Form) {
+    form.Set("", hg.Attr{"method":"post", "action":"/Tests/Post/"})
+    fieldset := hg.H("fieldset", nil)
+    fieldset.Append("legend", nil, hg.Txt{"What is Your Favorite Pet?"})
+    pets := form.Checkboxes("favorite_pet", []string{"Cats", "Dogs", "Birds"})
+    for _, checkbox := range pets.Checkboxes {
+        checkbox.Set(".a.b.c", nil)
+        fieldset.AppendElements(checkbox, hg.Txt{checkbox.Value}, hg.H("br", nil))
+    }
+    fieldset.Append("br", nil)
+    fieldset.Append("input", hg.Attr{"type": "submit", "value": "Submit now"})
+    form.AppendElements(fieldset)
+    form.Unmarshal(func() {
+        pets.String()
+        pets.Strings()
+        pets.IsChecked("Cats")
+    })
+}

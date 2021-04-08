@@ -14,6 +14,9 @@ var singletonElements = map[string]struct{}{
 	"LINK": {}, "META": {}, "PARAM": {}, "SOURCE": {}, "TRACK": {}, "WBR": {},
 }
 
+// to convert from Element to template.HTML, you need the (CForm).Marshal() method which contains an instance of bluemonday in order to sanitize the output
+// for forms specifically, you need (CForm).MarshalForm(r, func(*cforms.Form)), because it supplies the request to the form
+
 type Element interface {
 	AppendHTML(*strings.Builder) error
 }
@@ -47,17 +50,26 @@ type HTMLElement struct {
 	attributes map[string]string
 	children   []Element
 }
+type htmlElement = HTMLElement
 
 func H(selector string, attributes map[string]string, children ...Element) HTMLElement {
+	type attr = Attr
+	type txt = Txt
 	return HTMLElement{selector: selector, attributes: attributes, children: children}
 }
 
-func (el *HTMLElement) H(selector string, attributes map[string]string, children ...Element) {
-	if selector == "" && attributes == nil {
-		el.children = append(el.children, children...)
-		return
-	}
+func (el *HTMLElement) Set(selector string, attributes map[string]string, children ...Element) {
+	el.selector = selector
+	el.attributes = attributes
+	el.children = children
+}
+
+func (el *HTMLElement) Append(selector string, attributes map[string]string, children ...Element) {
 	el.children = append(el.children, H(selector, attributes, children...))
+}
+
+func (el *HTMLElement) AppendElements(elements ...Element) {
+	el.children = append(el.children, elements...)
 }
 
 func (el HTMLElement) AppendHTML(buf *strings.Builder) error {
@@ -103,16 +115,14 @@ const (
 	ModeUnmarshal   Mode = 1
 )
 
-type htmlElement = HTMLElement
-
-type Form struct {
+type FormElement struct {
 	htmlElement
 	Mode Mode
 	r    *http.Request
 	errs []error
 }
 
-func (f *Form) Attrs(selector string, attributes map[string]string) {
+func (f *FormElement) Attrs(selector string, attributes map[string]string) {
 	if f.Mode == ModeUnmarshal {
 		return
 	}
@@ -120,18 +130,18 @@ func (f *Form) Attrs(selector string, attributes map[string]string) {
 	f.attributes = attributes
 }
 
-func (f *Form) H(selector string, attributes map[string]string, children ...Element) {
+func (f *FormElement) Append(selector string, attributes map[string]string, children ...Element) {
 	if f.Mode == ModeUnmarshal {
 		return
 	}
-	f.htmlElement.H(selector, attributes, children...)
+	f.htmlElement.Append(selector, attributes, children...)
 }
 
-func (f *Form) Err(err error) {
+func (f *FormElement) Err(err error) {
 	f.errs = append(f.errs, err)
 }
 
-func (f *Form) Unmarshal(fn func()) {
+func (f *FormElement) Unmarshal(fn func()) {
 	if f.Mode == ModeFormbuilder {
 		return
 	}
@@ -166,15 +176,15 @@ type FileInputElement struct {
 	HTMLInputElement
 }
 
-func (f *Form) Text(name string, defaultValue string, selector string, attributes map[string]string, validators ...func(interface{}) error) StringInputElement {
+func (f *FormElement) Text(name string, defaultValue string, selector string, attributes map[string]string, validators ...func(interface{}) error) StringInputElement {
 	return StringInputElement{}
 }
 
-func MarshalForm(r *http.Request, fn func(*Form)) (template.HTML, error) {
+func MarshalForm(r *http.Request, fn func(*FormElement)) (template.HTML, error) {
 	return "", nil
 }
 
-func UnmarshalForm(r *http.Request, fn func(*Form)) error {
+func UnmarshalForm(r *http.Request, fn func(*FormElement)) error {
 	return nil
 }
 

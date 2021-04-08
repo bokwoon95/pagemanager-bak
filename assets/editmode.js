@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function main() {
 
   function pmToolbar() {
     const buttonAttributes = function (attributes) {
-      return Object.assign({ class: "pm-toolbar-button" }, attributes);
+      return Object.assign(attributes, { class: "pm-toolbar-button" });
     };
     const labelAttributes = { class: "pm-toolbar-button-label" };
     const deleteButton = pmCreateElement(
@@ -743,8 +743,8 @@ document.addEventListener("DOMContentLoaded", function main() {
       onload: initialRender,
       onerror: fallbackRender,
     });
-    let dragging = false; // track mouse dragging inside the canvas
-    let outOfBoundsDragging = false; // track mouse dragging outside the canvas
+    let dragging = false; // is mouse dragging inside the canvas?
+    let outOfBoundsDragging = false; // is mouse dragging outside the canvas?
     let destX = 0; // x-coord of top-left corner of sourceImage on the canvas
     let destY = 0; // y-coord of top-left corner of sourceImage on the canvas
     let scaleX = 1; // width-scaling factor of sourceImage on the canvas
@@ -762,7 +762,7 @@ document.addEventListener("DOMContentLoaded", function main() {
       onmouseout: mouseout,
       onmouseenter: mouseenter,
     });
-    const keepAspectRatio = pmCreateElement("input", {
+    const aspectRatioCheckbox = pmCreateElement("input", {
       id: Math.random().toString(36).substring(2),
       type: "checkbox",
       style: { "margin-right": "0.5rem" },
@@ -814,8 +814,8 @@ document.addEventListener("DOMContentLoaded", function main() {
       pmCreateElement(
         "div",
         {},
-        keepAspectRatio,
-        pmCreateElement("label", { for: keepAspectRatio.id }, "Lock aspect ratio"),
+        aspectRatioCheckbox,
+        pmCreateElement("label", { for: aspectRatioCheckbox.id }, "Lock aspect ratio"),
       ),
       pmCreateElement(
         "div",
@@ -918,7 +918,7 @@ document.addEventListener("DOMContentLoaded", function main() {
       scaleX = 1 + widthSliderValue * sliderStep;
       destX -= widthDelta / 2;
       lastWidthSliderValue = widthSliderValue;
-      if (keepAspectRatio.checked) {
+      if (aspectRatioCheckbox.checked) {
         let heightSliderValue = parseInt(heightSlider.value, 10) + sliderDelta;
         // Boundary checks
         if (heightSliderValue < sliderMin) {
@@ -943,7 +943,7 @@ document.addEventListener("DOMContentLoaded", function main() {
       scaleY = 1 + heightSliderValue * sliderStep;
       destY -= heightDelta / 2;
       lastHeightSliderValue = heightSliderValue;
-      if (keepAspectRatio.checked) {
+      if (aspectRatioCheckbox.checked) {
         let widthSliderValue = parseInt(widthSlider.value, 10) + sliderDelta;
         // Boundary checks
         if (widthSliderValue < sliderMin) {
