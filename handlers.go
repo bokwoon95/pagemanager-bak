@@ -264,6 +264,7 @@ func (pm *PageManager) serveFile(w http.ResponseWriter, r *http.Request, name st
 type superadminLoginData struct {
 	Password   string
 	RememberMe bool
+	Pet        string
 }
 
 func (d *superadminLoginData) Form(form *hyperform.Form) {
@@ -271,6 +272,15 @@ func (d *superadminLoginData) Form(form *hyperform.Form) {
 	var h, txt = hyperform.H, hyperform.Txt
 	password := form.Input("password", "pm-superadmin-password", "").Set("#pm-superadmin-password.bg-near-white.pa2.w-100", nil)
 	rememberme := form.Checkbox("remember-me", "").Set("#remember-me.pointer", nil)
+	pet := form.Select("pets", []hyperform.SelectOption{
+		{Value: " ", Display: "--Please choose an option--"},
+		{Value: "dog", Display: "Dog"},
+		{Value: "cat", Display: "Cat"},
+		{Value: "hamster", Display: "Hamster"},
+		{Value: "parrot", Display: "Parrot"},
+		{Value: "spider", Display: "Spider"},
+		{Value: "goldfish", Display: "Goldfish"},
+	}).Set("#pet-select.bg-near-white.pa2.w-100", nil)
 	form.Set("#loginform.bg-white", attr{"name": "loginform", "method": "POST", "action": ""})
 	form.Append("div.mv2.pt2", nil, h("label.pointer", attr{"for": "pm-superadmin-password"}, txt("Password:")))
 	if errs := password.Errors(); len(errs) > 0 {
@@ -281,11 +291,14 @@ func (d *superadminLoginData) Form(form *hyperform.Form) {
 		form.AppendElements(div)
 	}
 	form.Append("div", nil, password)
+	form.Append("div.mv2.pt2", nil, h("label.pointer", attr{"for": "pet-select"}, txt("Choose a pet:")))
+	form.AppendElements(pet)
 	form.Append("div.mv2.pt2", nil, rememberme, h("label.ml1.pointer", attr{"for": "remember-me"}, txt("Remember Me")))
 	form.Append("div.mv2.pt2", nil, h("button", attr{"type": "submit"}, txt("Log in")))
 	form.Unmarshal(func() {
 		d.Password = password.Validate().Value()
 		d.RememberMe = rememberme.Checked()
+		d.Pet = pet.Value()
 	})
 }
 

@@ -474,8 +474,8 @@ func (f *Form) Select(name string, options []SelectOption) *SelectInput {
 	}
 	f.names[name] = struct{}{}
 	i := &SelectInput{form: f, name: name}
-	for _, option := range options {
-		i.Options = append(i.Options, &option)
+	for j := range options {
+		i.Options = append(i.Options, &options[j])
 	}
 	return i
 }

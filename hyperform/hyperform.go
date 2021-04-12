@@ -24,8 +24,8 @@ const Disabled = "\x01"
 var sanitizer = func() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
 	p.AllowStyling()
-	p.AllowElements("form", "input", "button", "label")
-	p.AllowAttrs("name", "type", "for").Globally()
+	p.AllowElements("form", "input", "button", "label", "select", "option")
+	p.AllowAttrs("name", "value", "type", "for").Globally()
 	p.AllowAttrs("method", "action").OnElements("form")
 	return p
 }()
