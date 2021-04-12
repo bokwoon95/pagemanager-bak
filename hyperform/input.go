@@ -267,10 +267,12 @@ func (i *CheckboxInput) Checked() bool {
 		return false
 	}
 	for _, value := range values {
-		if i.defaultValue == "" {
-			return value == "on"
+		if i.defaultValue == "" && value == "on" {
+			return true
 		}
-		return value == i.defaultValue
+		if i.defaultValue != "" && value == i.defaultValue {
+			return true
+		}
 	}
 	return false
 }

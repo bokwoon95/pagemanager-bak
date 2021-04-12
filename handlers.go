@@ -268,8 +268,7 @@ type superadminLoginData struct {
 
 func (d *superadminLoginData) Form(form *hyperform.Form) {
 	type attr = hyperform.Attr
-	type txt = hyperform.Txt
-	var h = hyperform.H
+	h, txt := hyperform.H, hyperform.Txt
 	password := form.Input("password", "pm-superadmin-password", "").Set("#pm-superadmin-password.bg-near-white.pa2.w-100", nil)
 	rememberme := form.Checkbox("remember-me", "").Set("#remember-me.pointer", nil)
 	form.Set("#loginform.bg-white", attr{"name": "loginform", "method": "POST", "action": ""})

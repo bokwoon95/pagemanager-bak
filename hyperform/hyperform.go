@@ -40,11 +40,15 @@ type Element interface {
 
 type Attr map[string]string
 
-type Txt string
+type text string
 
-func (t Txt) appendHTML(buf *strings.Builder) error {
+func (t text) appendHTML(buf *strings.Builder) error {
 	buf.WriteString(string(t))
 	return nil
+}
+
+func Txt(txt string) Element {
+	return text(txt)
 }
 
 type parsedSelector struct {
