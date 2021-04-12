@@ -3,6 +3,7 @@ package hg
 import (
 	"html/template"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -136,4 +137,14 @@ func Marshal(w http.ResponseWriter, r *http.Request, el Element) (template.HTML,
 
 func Redirect(w http.ResponseWriter, r *http.Request, url string, err error) {
 	// cast err into a FormError, then serialize it into a cookie
+}
+
+func caller(skip int) (file string, line int, function string) {
+	var pc [1]uintptr
+	n := runtime.Callers(skip+2, pc[:])
+	if n == 0 {
+		return "???", 1, "???"
+	}
+	frame, _ := runtime.CallersFrames(pc[:n]).Next()
+	return frame.File, frame.Line, frame.Function
 }

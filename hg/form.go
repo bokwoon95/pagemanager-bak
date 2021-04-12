@@ -31,6 +31,7 @@ type Form struct {
 	children   []Element
 	mode       FormMode
 	request    *http.Request
+	names      map[string]struct{}
 	errors     FormErrors
 }
 
@@ -81,7 +82,9 @@ func (f *Form) Err(err error) {
 
 func MarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) (template.HTML, error) {
 	form := &Form{
-		selector: "form",
+		selector:   "form",
+		attributes: make(map[string]string),
+		names:      make(map[string]struct{}),
 	}
 	fn(form)
 	return Marshal(w, r, form)
@@ -93,23 +96,29 @@ func UnmarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) error
 		return erro.Wrap(err)
 	}
 	form := &Form{
-		selector: "form",
-		mode:     FormModeUnmarshal,
-		request:  r,
+		selector:   "form",
+		attributes: make(map[string]string),
+		mode:       FormModeUnmarshal,
+		request:    r,
+		names:      make(map[string]struct{}),
 	}
 	fn(form)
 	return form.errors
 }
 
+// TODO: remove this,
+// https://medium.com/@owlwalks/dont-parse-everything-from-client-multipart-post-golang-9280d23cd4ad
 func UnmarshalMultipartForm(w http.ResponseWriter, r *http.Request, fn func(*Form), maxMemory int64) error {
 	err := r.ParseMultipartForm(maxMemory)
 	if err != nil {
 		return erro.Wrap(err)
 	}
 	form := &Form{
-		selector: "form",
-		mode:     FormModeUnmarshal,
-		request:  r,
+		selector:   "form",
+		attributes: make(map[string]string),
+		mode:       FormModeUnmarshal,
+		request:    r,
+		names:      make(map[string]struct{}),
 	}
 	fn(form)
 	return form.errors
