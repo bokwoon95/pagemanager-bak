@@ -1,4 +1,4 @@
-package hg
+package hyperform
 
 import (
 	"fmt"
@@ -17,8 +17,8 @@ const (
 )
 
 type FormErrors struct {
-	inputErrors  map[string][]error
-	customErrors []error
+	inputErrors map[string][]error
+	formErrors  []error
 }
 
 func (e FormErrors) Error() string {
@@ -76,8 +76,12 @@ func (f *Form) Unmarshal(fn func()) {
 	fn()
 }
 
-func (f *Form) Err(err error) {
-	f.errors.customErrors = append(f.errors.customErrors, err)
+func (f *Form) FormError(err error) {
+	f.errors.formErrors = append(f.errors.formErrors, err)
+}
+
+func (f *Form) InputError(name string, err error) {
+	f.errors.inputErrors[name] = append(f.errors.inputErrors[name], err)
 }
 
 func MarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) (template.HTML, error) {

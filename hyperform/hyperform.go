@@ -1,6 +1,7 @@
-package hg
+package hyperform
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"runtime"
@@ -18,6 +19,7 @@ var singletonElements = map[string]struct{}{
 }
 
 const Enabled = "\x00"
+const Disabled = "\x01"
 
 var sanitizer = func() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
@@ -51,10 +53,113 @@ type parsedSelector struct {
 }
 
 func parseSelector(selector string, attributes map[string]string) (parsedSelector, error) {
-	// attrs["id"] overwrites selector id, and is deleted from the map
-	// any attrs in attrs overwrites selector attrs, and is deleted from the map
-	// attrs["class"] is concatenated with any classes in selector class, and is deleted from the map
-	return parsedSelector{}, nil
+	const (
+		StateEmpty = iota
+		StateTag
+		StateID
+		StateClass
+		StateAttrName
+		StateAttrValue
+	)
+	s := parsedSelector{attributes: make(map[string]string)}
+	if strings.HasPrefix(selector, "<") && strings.HasSuffix(selector, ">") {
+		s.body = selector
+		return s, nil
+	}
+	state := StateTag
+	var classes []string
+	var name []rune
+	var value []rune
+	for _, c := range selector {
+		if c == '#' || c == '.' || c == '[' {
+			switch state {
+			case StateTag:
+				s.tag = string(value)
+			case StateID:
+				s.id = string(value)
+			case StateClass:
+				if len(value) > 0 {
+					classes = append(classes, string(value))
+				}
+			case StateAttrName, StateAttrValue:
+				return s, erro.Wrap(fmt.Errorf("unclosed attribute"))
+			}
+			value = value[:0]
+			switch c {
+			case '#':
+				state = StateID
+			case '.':
+				state = StateClass
+			case '[':
+				state = StateAttrName
+			}
+			continue
+		}
+		if c == '=' {
+			switch state {
+			case StateAttrName:
+				state = StateAttrValue
+			default:
+				return s, erro.Wrap(fmt.Errorf("unopened attribute"))
+			}
+			continue
+		}
+		if c == ']' {
+			switch state {
+			case StateAttrName:
+				s.attributes[string(name)] = Enabled
+			case StateAttrValue:
+				s.attributes[string(name)] = string(value)
+			default:
+				return s, erro.Wrap(fmt.Errorf("unopened attribute"))
+			}
+			name = name[:0]
+			value = value[:0]
+			state = StateEmpty
+			continue
+		}
+		switch state {
+		case StateTag, StateID, StateClass, StateAttrValue:
+			value = append(value, c)
+		case StateAttrName:
+			name = append(name, c)
+		case StateEmpty:
+			return s, erro.Wrap(fmt.Errorf("unknown state (please prepend with '#', '.' or '['"))
+		}
+	}
+	// flush value
+	if len(value) > 0 {
+		switch state {
+		case StateTag:
+			s.tag = string(value)
+		case StateID:
+			s.id = string(value)
+		case StateClass:
+			classes = append(classes, string(value))
+		default:
+			return s, erro.Wrap(fmt.Errorf("unclosed attribute"))
+		}
+		value = value[:0]
+	}
+	if s.tag == "" {
+		s.tag = "div"
+	}
+	if len(classes) > 0 {
+		s.class = strings.Join(classes, " ")
+	}
+	for name, value := range attributes {
+		switch name {
+		case "id":
+			s.id = value
+		case "class":
+			if value != "" {
+				s.class += " " + value
+			}
+		default:
+			s.attributes[name] = value
+		}
+	}
+	return s, nil
 }
 
 func appendHTML(buf *strings.Builder, selector string, attributes map[string]string, children []Element) error {

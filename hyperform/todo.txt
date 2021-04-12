@@ -1,0 +1,164 @@
+hyperform-go
+A form rendering and validation library for Go.
+
+var form hg.Form
+form.Set("", hg.Attr{})
+form.Append("div", nil, hg.H("fieldset", nil))
+formHTML := hg.Marshal(w, r, form)
+formHTML := hg.MarshalForm(w, r, formfunc)
+
+<form method="post" action="/Tests/Post/">
+    <fieldset>
+        <legend>What is Your Favorite Pet?</legend>
+        <input type="checkbox" name="favorite_pet" value="Cats">Cats<br>
+        <input type="checkbox" name="favorite_pet" value="Dogs">Dogs<br>
+        <input type="checkbox" name="favorite_pet" value="Birds">Birds<br>
+        <br>
+        <input type="submit" value="Submit now" />
+    </fieldset>
+</form>
+
+type formdata struct {
+    FavoritePets []string
+}
+
+func (data *formdata) Form(form *hg.Form) {
+    form.Set("", hg.Attr{"method":"post", "action":"/Tests/Post/"})
+    fieldset := hg.H("fieldset", nil)
+    fieldset.Append("legend", nil, hg.Txt{"What is Your Favorite Pet?"})
+    pets := form.Checkboxes("favorite_pet", []string{"Cats", "Dogs", "Birds"})
+    for _, checkbox := range pets.Checkboxes() {
+        checkbox.Set(".a.b.c", nil)
+        fieldset.AppendElements(checkbox, hg.Txt{checkbox.Value}, hg.H("br", nil))
+    }
+    fieldset.Append("br", nil)
+    fieldset.Append("input", hg.Attr{"type": "submit", "value": "Submit now"})
+    form.AppendElements(fieldset)
+    form.Unmarshal(func() {
+        data.FavoritePets = pets.Strings()
+        if pets.IsChecked("Cats") {
+            fmt.Println("Cats was checked")
+        }
+    })
+}
+
+<form method="post">
+	<select name="Icecream Flavours">
+		<option value="double chocolate">Double Chocolate</option>
+		<option value="vanilla">Vanilla</option>
+		<option value="strawberry">Strawberry</option>
+		<option value="caramel">Caramel</option>
+	</select>
+</form>
+
+sel := form.Select("Icecream Flavours", []hg.SelectOption{
+    {Value: "double chocolate", Display: "Double Chocolate"},
+    {Value: "vanilla", Display: "Vanilla"},
+})
+
+sel := form.Select("Icecream Flavours", []h.SelectOption{
+    {Value: "double chocolate", Display: "Double Chocolate", Selector: "#lmao-bruh"},
+    {Value: "vanilla", Display: "Vanilla", Selected: true},
+})
+
+<datalist id="ice-cream-flavors">
+    <option value="Chocolate"></option>
+    <option value="Coconut"></option>
+    <option value="Mint"></option>
+    <option value="Strawberry"></option>
+    <option value="Vanilla"></option>
+</datalist>
+
+form.Append("datalist", h.Attr{"id": "ice-cream-flavors"},
+    h.H("option", h.Attr{"value": "Chocolate"}),
+    h.H("option", h.Attr{"value": "Coconut"}),
+    h.H("option", h.Attr{"value": "Mint"}),
+    h.H("option", h.Attr{"value": "Strawberry"}),
+    h.H("option", h.Attr{"value": "Vanilla"}),
+)
+
+age := form.Number("age", 22)
+if errs := age.Errors(); len(errs) > 0 {
+    for _, err := range errs {
+        form.Append("div", nil, h.Txt{err.Error()})
+    }
+}
+form.Unmarshal(func() {
+    d.Age = age.Validate(vdtr.Not(""), vdtr.IsNumber).Int()
+    d.Age = age.Validate(vdtr.Coalesce(vdtr.Required, vdtr.IsNumber)).Int()
+})
+
+<form>
+  <p>
+    <label for="search">search: </label>
+    <input id="search" name="search" type="search">
+  </p>
+  <p>
+    <label for="text">text: </label>
+    <input id="text" name="text" type="text">
+  </p>
+  <p>
+    <label for="date">date: </label>
+    <input id="date" name="date" type="date">
+  </p>
+  <p>
+    <label for="radio">radio: </label>
+    <input id="radio" name="radio" type="radio">
+  </p>
+  <p>
+    <label for="checkbox">checkbox: </label>
+    <input id="checkbox" name="checkbox" type="checkbox">
+  </p>
+  <p><input type="submit" value="submit"></p>
+  <p><input type="button" value="button"></p>
+</form>
+
+func (d *Data) Form(form *h.Form) {
+    search := form.Input("search", "search", d.Search).Set("#search", nil)
+    text := form.Text("text", d.Text).Set("#text", nil)
+    date := form.Date("date", d.Date).Set("#date", nil)
+    radios := form.Radios("radio", []string{"value 1"})
+    checkboxes := f.Checkboxes("checkbox", []string{"value 1"})
+    form.Append("p", nil, h.H("label", h.Attr{"for": "search"}, h.Txt{"search: "}), search) // no-op
+    form.Append("p", nil, h.H("label", h.Attr{"for": "search"}, h.Txt{"search: "}), text) // no-op
+    form.Append("p", nil, h.H("label", h.Attr{"for": "search"}, h.Txt{"search: "}), date) // no-op
+    p1 := h.H("p", nil)
+    for _, radio := range radios.Radios() {
+        id := randstr()
+        radio.Set("", h.Attr{"id": id})
+        checked := h.Disabled
+        if d.Radio = radio.Value() {
+            checked = h.Enabled
+        }
+        p1.AppendElements(h.H("label", h.Attr{"for": id, "checked": checked}, h.Txt{"search: "}), radio)
+    }
+    form.Append(p1) // no-op
+    p2 := h.H("p", nil)
+    set := make(map[string]struct{})
+    for _, v := range d.Checkbox {
+        set[v] = struct{}{}
+    }
+    for _, checkbox := range checkboxes.Checkboxes() {
+        id := randstr()
+        checkbox.Set("", h.Attr{"id": id})
+        checked := h.Disabled
+        if _, ok := set[checkbox.Value()]; ok {
+            checked = h.Enabled
+        }
+        p2.AppendElements(h.H("label", h.Attr{"for": id, "checked": checked}, h.Txt{"search: "}), checkbox)
+    }
+    form.Append(p2) // no-op
+    form.Unmarshal(func() {
+        d.Search = search.Validate().Value()
+        d.Text = text.Validate().Value()
+        d.Date = date.Validate().Time()
+        d.Radio = radios.Value()
+        for _, v := range checkboxes.Values() {
+            d.Checkbox = append(d.Checkbox, v)
+        }
+        if d.Search == d.Text {
+            f.InputError("search", fmt.Errorf("search cannot be the same as text"))
+            f.FormError(fmt.Errorf("Errors present in the form"))
+        }
+    })
+}
