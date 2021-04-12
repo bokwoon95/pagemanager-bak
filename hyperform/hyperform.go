@@ -143,7 +143,9 @@ func parseSelector(selector string, attributes map[string]string) (parsedSelecto
 			s.id = string(value)
 		case StateClass:
 			classes = append(classes, string(value))
-		default:
+		case StateEmpty:
+			// do nothing, drop the value
+		case StateAttrName, StateAttrValue:
 			return s, erro.Wrap(fmt.Errorf("unclosed attribute"))
 		}
 		value = value[:0]

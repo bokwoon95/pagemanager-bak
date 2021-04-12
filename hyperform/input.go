@@ -392,7 +392,58 @@ func (i SelectInput) appendHTML(buf *strings.Builder) error {
 	if err != nil {
 		return erro.Wrap(err)
 	}
-	_ = s
+	buf.WriteString(`<select`)
+	if s.id != "" {
+		buf.WriteString(` id="` + s.id + `"`)
+	}
+	buf.WriteString(` name="` + i.name + `"`)
+	if s.class != "" {
+		buf.WriteString(` class="` + s.class + `"`)
+	}
+	for name, value := range s.attributes {
+		switch value {
+		case Enabled:
+			buf.WriteString(` ` + name)
+		case Disabled:
+			continue
+		default:
+			buf.WriteString(` ` + name + `="` + value + `"`)
+		}
+	}
+	buf.WriteString(`>`)
+	for _, option := range i.Options {
+		buf.WriteString(`<option`)
+		s, err := parseSelector(option.Selector, option.Attributes)
+		if err != nil {
+			return erro.Wrap(err)
+		}
+		if s.id != "" {
+			buf.WriteString(` id="` + s.id + `"`)
+		}
+		buf.WriteString(` value="` + option.Value + `"`)
+		if s.class != "" {
+			buf.WriteString(` class="` + s.class + `"`)
+		}
+		for name, value := range s.attributes {
+			if name == "selected" {
+				continue
+			}
+			switch value {
+			case Enabled:
+				buf.WriteString(` ` + name)
+			case Disabled:
+				continue
+			default:
+				buf.WriteString(` ` + name + `="` + value + `"`)
+			}
+		}
+		if option.Selected {
+			buf.WriteString(` selected`)
+		}
+		buf.WriteString(`>`)
+		buf.WriteString(option.Display + `</option>`)
+	}
+	buf.WriteString(`</select>`)
 	return nil
 }
 
