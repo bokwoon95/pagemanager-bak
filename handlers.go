@@ -294,7 +294,7 @@ func (d *superadminLoginData) Form(form *hyperform.Form) {
 	form.Append("div.mv2.pt2", nil, h("label.pointer", attr{"for": "pet-select"}, txt("Choose a pet:")))
 	form.AppendElements(pet)
 	form.Append("div.mv2.pt2", nil, rememberme, h("label.ml1.pointer", attr{"for": "remember-me"}, txt("Remember Me")))
-	form.Append("div.mv2.pt2", nil, h("button", attr{"type": "submit"}, txt("Log in")))
+	form.Append("div.mv2.pt2", nil, h("button.pointer", attr{"type": "submit"}, txt("Log in")))
 	form.Unmarshal(func() {
 		d.Password = password.Validate().Value()
 		d.RememberMe = rememberme.Checked()
