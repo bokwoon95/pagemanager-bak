@@ -24,6 +24,9 @@ const Disabled = "\x01"
 var sanitizer = func() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
 	p.AllowStyling()
+	p.AllowElements("form", "input", "button", "label")
+	p.AllowAttrs("name", "type", "for").Globally()
+	p.AllowAttrs("method", "action").OnElements("form")
 	return p
 }()
 
@@ -37,10 +40,10 @@ type Element interface {
 
 type Attr map[string]string
 
-type Txt struct{ Text string }
+type Txt string
 
 func (t Txt) appendHTML(buf *strings.Builder) error {
-	buf.WriteString(t.Text)
+	buf.WriteString(string(t))
 	return nil
 }
 
@@ -182,10 +185,43 @@ func appendHTML(buf *strings.Builder, selector string, attributes map[string]str
 	if s.class != "" {
 		buf.WriteString(` class="` + s.class + `"`)
 	}
-	buf.WriteString(`>`)
 	for name, value := range s.attributes {
 		buf.WriteString(` ` + name + `="` + value + `"`)
 	}
+	buf.WriteString(`>`)
+	for _, child := range children {
+		err = child.appendHTML(buf)
+		if err != nil {
+			return erro.Wrap(err)
+		}
+	}
+	if _, ok := singletonElements[strings.ToUpper(s.tag)]; !ok {
+		buf.WriteString("</" + s.tag + ">")
+	}
+	return nil
+}
+
+func appendHTMLv2(buf *strings.Builder, s parsedSelector, children []Element) error {
+	if s.body != "" {
+		buf.WriteString(s.body)
+		return nil
+	}
+	if s.tag != "" {
+		buf.WriteString(`<` + s.tag)
+	} else {
+		buf.WriteString(`<div`)
+	}
+	if s.id != "" {
+		buf.WriteString(` id="` + s.id + `"`)
+	}
+	if s.class != "" {
+		buf.WriteString(` class="` + s.class + `"`)
+	}
+	for name, value := range s.attributes {
+		buf.WriteString(` ` + name + `="` + value + `"`)
+	}
+	buf.WriteString(`>`)
+	var err error
 	for _, child := range children {
 		err = child.appendHTML(buf)
 		if err != nil {
@@ -236,7 +272,8 @@ func Marshal(w http.ResponseWriter, r *http.Request, el Element) (template.HTML,
 	if err != nil {
 		return "", erro.Wrap(err)
 	}
-	output := sanitizer.Sanitize(buf.String())
+	output := buf.String()
+	output = sanitizer.Sanitize(buf.String())
 	return template.HTML(output), nil
 }
 

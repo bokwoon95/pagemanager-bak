@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/bokwoon95/erro"
+	"github.com/bokwoon95/pagemanager/hyperform"
 	"github.com/bokwoon95/pagemanager/sq"
 	"github.com/bokwoon95/pagemanager/tables"
 	_ "github.com/mattn/go-sqlite3"
@@ -260,9 +261,39 @@ func (pm *PageManager) serveFile(w http.ResponseWriter, r *http.Request, name st
 
 // sha256-JTm1pbrQf0HAbR27OuEt4ctbhU5wBu8sx03KF+37i5Y=
 
+type superadminLoginData struct {
+	Password   string
+	RememberMe bool
+}
+
+func (d *superadminLoginData) Form(form *hyperform.Form) {
+	type attr = hyperform.Attr
+	type txt = hyperform.Txt
+	var h = hyperform.H
+	password := form.Input("password", "pm-superadmin-password", "").Set("#pm-superadmin-password.bg-near-white.pa2.w-100", nil)
+	rememberme := form.Checkbox("remember-me", "").Set("#remember-me.pointer", nil)
+	form.Set("#loginform.bg-white", attr{"name": "loginform", "method": "POST", "action": ""})
+	form.Append("div.mv2.pt2", nil, h("label.pointer", attr{"for": "pm-superadmin-password"}, txt("Password:")))
+	if errs := password.Errors(); len(errs) > 0 {
+		div := h("div", nil)
+		for _, err := range password.Errors() {
+			div.Append("div", nil, txt(err.Error()))
+		}
+		form.AppendElements(div)
+	}
+	form.Append("div", nil, password)
+	form.Append("div.mv2.pt2", nil, rememberme, h("label.ml1.pointer", attr{"for": "remember-me"}, txt("Remember Me")))
+	form.Append("div.mv2.pt2", nil, h("button", attr{"type": "submit"}, txt("Log in")))
+	form.Unmarshal(func() {
+		d.Password = password.Validate().Value()
+		d.RememberMe = rememberme.Checked()
+	})
+}
+
 func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 	type Data struct {
-		Page PageData
+		Page      PageData
+		LoginForm template.HTML
 	}
 	switch r.Method {
 	case "GET":
@@ -275,6 +306,13 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		data.Page.JSAssets = []Asset{
 			{Path: "/pm-plugins/pagemanager/pmJSON.js"},
 		}
+		var err error
+		d := &superadminLoginData{}
+		data.LoginForm, err = hyperform.MarshalForm(w, r, d.Form)
+		if err != nil {
+			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
+			return
+		}
 		t, err := pm.parseTemplates(templatesFS, "superadmin-login.html")
 		if err != nil {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
@@ -286,6 +324,14 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "POST":
+		var d superadminLoginData
+		err := hyperform.UnmarshalForm(w, r, d.Form)
+		fmt.Println(d)
+		if err != nil {
+			fmt.Println("err:", err)
+			hyperform.Redirect(w, r, r.URL.Path, err)
+			return
+		}
 		http.Redirect(w, r, LocaleURL(r), http.StatusMovedPermanently)
 	}
 }

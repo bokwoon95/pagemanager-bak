@@ -106,7 +106,7 @@ func (i *Input) Errors() []error {
 	return i.form.errors.inputErrors[i.name]
 }
 
-func (i *Input) Check(validators ...func(interface{}) error) *Input {
+func (i *Input) Validate(validators ...func(interface{}) error) *Input {
 	if i.form.mode != FormModeUnmarshal {
 		return i
 	}
@@ -144,7 +144,7 @@ func (i *StringInput) Errors() []error {
 	return i.form.errors.inputErrors[i.name]
 }
 
-func (i *StringInput) Check(validators ...func(interface{}) error) *StringInput {
+func (i *StringInput) Validate(validators ...func(interface{}) error) *StringInput {
 	if i.form.mode != FormModeUnmarshal {
 		return i
 	}
@@ -182,7 +182,7 @@ func (i *NumberInput) Errors() []error {
 	return i.form.errors.inputErrors[i.name]
 }
 
-func (i *NumberInput) Check(validators ...func(interface{}) error) *NumberInput {
+func (i *NumberInput) Validate(validators ...func(interface{}) error) *NumberInput {
 	if i.form.mode != FormModeUnmarshal {
 		return i
 	}
@@ -243,10 +243,36 @@ func (i *HiddenInput) Set(selector string, attributes map[string]string) *Hidden
 
 type CheckboxInput struct{ input }
 
+func (f *Form) Checkbox(name string, defaultValue string) *CheckboxInput {
+	return &CheckboxInput{input: input{
+		inputType:    "checkbox",
+		form:         f,
+		name:         name,
+		defaultValue: defaultValue,
+	}}
+}
+
 func (i *CheckboxInput) Set(selector string, attributes map[string]string) *CheckboxInput {
 	i.selector = selector
 	i.attributes = attributes
 	return i
+}
+
+func (i *CheckboxInput) Checked() bool {
+	if i.form.mode != FormModeUnmarshal {
+		return false
+	}
+	values, ok := i.form.request.Form[i.name]
+	if !ok || len(values) == 0 {
+		return false
+	}
+	for _, value := range values {
+		if i.defaultValue == "" {
+			return value == "on"
+		}
+		return value == i.defaultValue
+	}
+	return false
 }
 
 type CheckboxInputs struct {

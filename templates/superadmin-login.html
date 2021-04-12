@@ -10,17 +10,18 @@
   <div></div>
   <div id="login">
     <h1>Superadmin Login</h1>
-    <form id="loginform" name="loginform" method="POST" action="" class="bg-white">
-      <div class="mv2 pt2"><label>Password:</label></div>
-      <div><input type="text" id="pm-superadmin-password" name="pm-superadmin-password" class="bg-near-white pa2 w-100"></div>
-      <div class="mv2 pt2">
-        <input id="remember-me" type="checkbox" class="pointer">
-        <label for="remember-me" class="ml1 pointer">Remember Me</label>
-      </div>
-      <div class="mv2 pt2">
-        <button type="submit">Log in</button>
-      </div>
-    </form>
+    <!-- <form id="loginform" name="loginform" method="POST" action="" class="bg&#45;white"> -->
+    <!--   <div class="mv2 pt2"><label>Password:</label></div> -->
+    <!--   <div><input type="text" id="pm&#45;superadmin&#45;password" name="pm&#45;superadmin&#45;password" class="bg&#45;near&#45;white pa2 w&#45;100"></div> -->
+    <!--   <div class="mv2 pt2"> -->
+    <!--     <input id="remember&#45;me" type="checkbox" class="pointer"> -->
+    <!--     <label for="remember&#45;me" class="ml1 pointer">Remember Me</label> -->
+    <!--   </div> -->
+    <!--   <div class="mv2 pt2"> -->
+    <!--     <button type="submit">Log in</button> -->
+    <!--   </div> -->
+    <!-- </form> -->
+    {{ .LoginForm }}
   </div>
   {{ .Page.JS }}
 </body>

@@ -21,6 +21,10 @@ type FormErrors struct {
 	formErrors  []error
 }
 
+func (e FormErrors) IsNil() bool {
+	return len(e.inputErrors) == 0 && len(e.formErrors) == 0
+}
+
 func (e FormErrors) Error() string {
 	return fmt.Sprintf("%#v", e)
 }
@@ -43,7 +47,12 @@ func (f *Form) appendHTML(buf *strings.Builder) error {
 		return nil
 	}
 	// check f.request.Context() for any CSRF token and prepend it into the form as necessary
-	return appendHTML(buf, f.selector, f.attributes, f.children)
+	s, err := parseSelector(f.selector, f.attributes)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	s.tag = "form"
+	return appendHTMLv2(buf, s, f.children)
 }
 
 func (f *Form) Set(selector string, attributes map[string]string, children ...Element) {
@@ -91,6 +100,9 @@ func MarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) (templa
 		names:      make(map[string]struct{}),
 	}
 	fn(form)
+	if len(form.errors.formErrors) > 0 {
+		return "", erro.Wrap(form.errors)
+	}
 	return Marshal(w, r, form)
 }
 
@@ -107,7 +119,10 @@ func UnmarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) error
 		names:      make(map[string]struct{}),
 	}
 	fn(form)
-	return form.errors
+	if !form.errors.IsNil() {
+		return form.errors
+	}
+	return nil
 }
 
 // TODO: remove this,
