@@ -113,27 +113,29 @@ form.Unmarshal(func() {
   <p><input type="button" value="button"></p>
 </form>
 
-func (d *Data) Form(form *h.Form) {
+func (d *Data) Form(form *hyperform.Form) {
+    type attr = hyperform.Attr
+    h, txt := hyperform.H, hyperform.Txt
     search := form.Input("search", "search", d.Search).Set("#search", nil)
     text := form.Text("text", d.Text).Set("#text", nil)
     date := form.Date("date", d.Date).Set("#date", nil)
     radios := form.Radios("radio", []string{"value 1"})
-    checkboxes := f.Checkboxes("checkbox", []string{"value 1"})
-    form.Append("p", nil, h.H("label", h.Attr{"for": "search"}, h.Txt{"search: "}), search) // no-op
-    form.Append("p", nil, h.H("label", h.Attr{"for": "search"}, h.Txt{"search: "}), text) // no-op
-    form.Append("p", nil, h.H("label", h.Attr{"for": "search"}, h.Txt{"search: "}), date) // no-op
-    p1 := h.H("p", nil)
+    checkboxes := form.Checkboxes("checkbox", []string{"value 1"})
+    form.Append("p", nil, h("label", attr{"for": "search"}, txt("search: ")), search) // no-op
+    form.Append("p", nil, h("label", attr{"for": "search"}, txt("search: ")), text) // no-op
+    form.Append("p", nil, h("label", attr{"for": "search"}, txt("search: ")), date) // no-op
+    p1 := h("p", nil)
     for _, radio := range radios.Radios() {
         id := randstr()
-        radio.Set("", h.Attr{"id": id})
-        checked := h.Disabled
+        radio.Set("", attr{"id": id})
+        checked := hyperform.Disabled
         if d.Radio = radio.Value() {
-            checked = h.Enabled
+            checked = hyperform.Enabled
         }
-        p1.AppendElements(h.H("label", h.Attr{"for": id, "checked": checked}, h.Txt{"search: "}), radio)
+        p1.AppendElements(h("label", attr{"for": id, "checked": checked}, txt("search: ")), radio)
     }
     form.Append(p1) // no-op
-    p2 := h.H("p", nil)
+    p2 := h("p", nil)
     set := make(map[string]struct{})
     for _, v := range d.Checkbox {
         set[v] = struct{}{}
@@ -141,11 +143,11 @@ func (d *Data) Form(form *h.Form) {
     for _, checkbox := range checkboxes.Checkboxes() {
         id := randstr()
         checkbox.Set("", h.Attr{"id": id})
-        checked := h.Disabled
+        checked := hyperform.Disabled
         if _, ok := set[checkbox.Value()]; ok {
-            checked = h.Enabled
+            checked = hyperform.Enabled
         }
-        p2.AppendElements(h.H("label", h.Attr{"for": id, "checked": checked}, h.Txt{"search: "}), checkbox)
+        p2.AppendElements(h("label", attr{"for": id, "checked": checked}, txt("search: ")), checkbox)
     }
     form.Append(p2) // no-op
     form.Unmarshal(func() {
@@ -153,12 +155,10 @@ func (d *Data) Form(form *h.Form) {
         d.Text = text.Validate().Value()
         d.Date = date.Validate().Time()
         d.Radio = radios.Value()
-        for _, v := range checkboxes.Values() {
-            d.Checkbox = append(d.Checkbox, v)
-        }
+        d.Checkbox = append(d.Checkbox, checkboxes.Values()...)
         if d.Search == d.Text {
-            f.InputError("search", fmt.Errorf("search cannot be the same as text"))
-            f.FormError(fmt.Errorf("Errors present in the form"))
+            form.InputError(search.Name(), fmt.Errorf("search cannot be the same as text"))
+            form.FormError(fmt.Errorf("Errors present in the form"))
         }
     })
 }

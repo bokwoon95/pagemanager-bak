@@ -24,8 +24,8 @@ document.addEventListener("DOMContentLoaded", function main() {
   }
   const navbar = createElement(
     "div",
-    { 
-      class: "pm-navbar-padding flex justify-between", 
+    {
+      class: "pm-navbar-padding flex justify-between",
       style: { height: "32px" } ,
     },
     createElement("div", {}, "testing"),

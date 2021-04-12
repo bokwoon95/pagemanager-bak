@@ -379,6 +379,7 @@ type SelectOption struct {
 	Attributes map[string]string
 }
 
+// TODO: <optgroup>s, which blow my mind https://developer.mozilla.org/en-US/docs/Web/HTML/Element/optgroup
 type SelectInput struct {
 	form       *Form
 	name       string

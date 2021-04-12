@@ -1,6 +1,7 @@
 package hyperform
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -24,9 +25,45 @@ const Disabled = "\x01"
 var sanitizer = func() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
 	p.AllowStyling()
-	p.AllowElements("form", "input", "button", "label", "select", "option")
-	p.AllowAttrs("name", "value", "type", "for").Globally()
-	p.AllowAttrs("method", "action").OnElements("form")
+	p.AllowDataAttributes()
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#attributes
+	p.AllowElements("form")
+	p.AllowAttrs("accept-charset", "autocomplete", "name", "rel", "action", "enctype", "method", "novalidate", "target").OnElements("form")
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input#attributes
+	p.AllowElements("input")
+	p.AllowAttrs(
+		"accept", "alt", "autocomplete", "autofocus", "capture", "checked",
+		"dirname", "disabled", "form", "formaction", "formenctype", "formmethod",
+		"formnovalidate", "formtarget", "height", "list", "max", "maxlength", "min",
+		"minlength", "multiple", "name", "pattern", "placeholder", "readonly",
+		"required", "size", "src", "step", "type", "value", "width",
+	).OnElements("input")
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#attributes
+	p.AllowElements("button")
+	p.AllowAttrs(
+		"autofocus", "disabled", "form", "formaction", "formenctype",
+		"formmethod", "formnovalidate", "formtarget", "name", "type", "value",
+	).OnElements("button")
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/label#attributes
+	p.AllowElements("label")
+	p.AllowAttrs("for").OnElements("label")
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/select#attributes
+	p.AllowElements("select")
+	p.AllowAttrs("autocomplete", "autofocus", "disabled", "form", "multiple", "name", "required", "size").OnElements("select")
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/option#attributes
+	p.AllowElements("option")
+	p.AllowAttrs("disabled", "label", "selected", "value").OnElements("option")
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inputmode
+	p.AllowAttrs("inputmode").Globally()
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/link#attributes
+	p.AllowElements("link")
+	p.AllowAttrs(
+		"as", "crossorigin", "disabled", "href", "hreflang", "imagesizes",
+		"imagesrcset", "media", "rel", "sizes", "title", "type",
+	).OnElements("link")
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#attributes
+	p.AllowElements("script")
+	p.AllowAttrs("async", "crossorigin", "defer", "integrity", "nomodule", "nonce", "referrerpolicy", "src", "type").OnElements("script")
 	return p
 }()
 
@@ -150,9 +187,6 @@ func parseSelector(selector string, attributes map[string]string) (parsedSelecto
 		}
 		value = value[:0]
 	}
-	if s.tag == "" {
-		s.tag = "div"
-	}
 	if len(classes) > 0 {
 		s.class = strings.Join(classes, " ")
 	}
@@ -180,6 +214,15 @@ func appendHTML(buf *strings.Builder, selector string, attributes map[string]str
 		buf.WriteString(s.body)
 		return nil
 	}
+	if s.tag == "" && attributes == nil {
+		for _, child := range children {
+			err = child.appendHTML(buf)
+			if err != nil {
+				return erro.Wrap(err)
+			}
+		}
+		return nil
+	}
 	if s.tag != "" {
 		buf.WriteString(`<` + s.tag)
 	} else {
@@ -192,7 +235,14 @@ func appendHTML(buf *strings.Builder, selector string, attributes map[string]str
 		buf.WriteString(` class="` + s.class + `"`)
 	}
 	for name, value := range s.attributes {
-		buf.WriteString(` ` + name + `="` + value + `"`)
+		switch value {
+		case Enabled:
+			buf.WriteString(` ` + name)
+		case Disabled:
+			continue
+		default:
+			buf.WriteString(` ` + name + `="` + value + `"`)
+		}
 	}
 	buf.WriteString(`>`)
 	for _, child := range children {
@@ -212,6 +262,16 @@ func appendHTMLv2(buf *strings.Builder, s parsedSelector, children []Element) er
 		buf.WriteString(s.body)
 		return nil
 	}
+	var err error
+	if s.tag == "" && s.attributes == nil {
+		for _, child := range children {
+			err = child.appendHTML(buf)
+			if err != nil {
+				return erro.Wrap(err)
+			}
+		}
+		return nil
+	}
 	if s.tag != "" {
 		buf.WriteString(`<` + s.tag)
 	} else {
@@ -224,10 +284,16 @@ func appendHTMLv2(buf *strings.Builder, s parsedSelector, children []Element) er
 		buf.WriteString(` class="` + s.class + `"`)
 	}
 	for name, value := range s.attributes {
-		buf.WriteString(` ` + name + `="` + value + `"`)
+		switch value {
+		case Enabled:
+			buf.WriteString(` ` + name)
+		case Disabled:
+			continue
+		default:
+			buf.WriteString(` ` + name + `="` + value + `"`)
+		}
 	}
 	buf.WriteString(`>`)
-	var err error
 	for _, child := range children {
 		err = child.appendHTML(buf)
 		if err != nil {
@@ -285,6 +351,7 @@ func Marshal(w http.ResponseWriter, r *http.Request, el Element) (template.HTML,
 
 func Redirect(w http.ResponseWriter, r *http.Request, url string, err error) {
 	// cast err into a FormError, then serialize it into a cookie
+	http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
 
 func caller(skip int) (file string, line int, function string) {
@@ -295,4 +362,36 @@ func caller(skip int) (file string, line int, function string) {
 	}
 	frame, _ := runtime.CallersFrames(pc[:n]).Next()
 	return frame.File, frame.Line, frame.Function
+}
+
+type JSONElement struct {
+	selector   string
+	attributes map[string]string
+	value      interface{}
+}
+
+func (el JSONElement) appendHTML(buf *strings.Builder) error {
+	b, err := json.Marshal(el.value)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	s, err := parseSelector(el.selector, el.attributes)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	s.tag = "script"
+	s.attributes["type"] = "application/json"
+	err = appendHTMLv2(buf, s, []Element{Txt(string(b))})
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	return nil
+}
+
+func JSON(selector string, attributes map[string]string, value interface{}) JSONElement {
+	return JSONElement{
+		selector:   selector,
+		attributes: attributes,
+		value:      value,
+	}
 }

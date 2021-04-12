@@ -264,47 +264,38 @@ func (pm *PageManager) serveFile(w http.ResponseWriter, r *http.Request, name st
 type superadminLoginData struct {
 	Password   string
 	RememberMe bool
-	Pet        string
 }
 
 func (d *superadminLoginData) Form(form *hyperform.Form) {
 	type attr = hyperform.Attr
 	var h, txt = hyperform.H, hyperform.Txt
-	password := form.Input("password", "pm-superadmin-password", "").Set("#pm-superadmin-password.bg-near-white.pa2.w-100", nil)
+	password := form.Input("password", "pm-superadmin-password", "").Set("#pm-superadmin-password.bg-near-white.pa2.w-100", attr{
+		"required": hyperform.Enabled,
+	})
 	rememberme := form.Checkbox("remember-me", "").Set("#remember-me.pointer", nil)
-	pet := form.Select("pets", []hyperform.SelectOption{
-		{Value: " ", Display: "--Please choose an option--"},
-		{Value: "dog", Display: "Dog"},
-		{Value: "cat", Display: "Cat"},
-		{Value: "hamster", Display: "Hamster"},
-		{Value: "parrot", Display: "Parrot"},
-		{Value: "spider", Display: "Spider"},
-		{Value: "goldfish", Display: "Goldfish"},
-	}).Set("#pet-select.bg-near-white.pa2.w-100", nil)
 	form.Set("#loginform.bg-white", attr{"name": "loginform", "method": "POST", "action": ""})
 	form.Append("div.mv2.pt2", nil, h("label.pointer", attr{"for": "pm-superadmin-password"}, txt("Password:")))
+	form.Append("div", nil, password)
 	if errs := password.Errors(); len(errs) > 0 {
 		div := h("div", nil)
 		for _, err := range password.Errors() {
-			div.Append("div", nil, txt(err.Error()))
+			div.Append("div.f6.gray", nil, txt(err.Error()))
 		}
 		form.AppendElements(div)
 	}
-	form.Append("div", nil, password)
-	form.Append("div.mv2.pt2", nil, h("label.pointer", attr{"for": "pet-select"}, txt("Choose a pet:")))
-	form.AppendElements(pet)
 	form.Append("div.mv2.pt2", nil, rememberme, h("label.ml1.pointer", attr{"for": "remember-me"}, txt("Remember Me")))
 	form.Append("div.mv2.pt2", nil, h("button.pointer", attr{"type": "submit"}, txt("Log in")))
 	form.Unmarshal(func() {
 		d.Password = password.Validate().Value()
 		d.RememberMe = rememberme.Checked()
-		d.Pet = pet.Value()
 	})
 }
 
 func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 	type Data struct {
 		Page      PageData
+		CSS       template.HTML
+		JS        template.HTML
 		LoginForm template.HTML
 	}
 	switch r.Method {
@@ -325,6 +316,22 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
 			return
 		}
+		data.CSS, err = hyperform.Marshal(w, r, h("", nil,
+			h("link[rel=stylesheet][type=text/css]", attr{"href": "/pm-plugins/pagemanager/tachyons.css"}),
+			h("link[rel=stylesheet][type=text/css]", attr{"href": "/pm-plugins/pagemanager/style.css"}),
+		))
+		if err != nil {
+			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
+			return
+		}
+		data.JS, err = hyperform.Marshal(w, r, h("", nil,
+			hyperform.JSON("[data-pm-json]", nil, map[string]interface{}{"yeet": 42069}),
+			h("script", attr{"src": "/pm-plugins/pagemanager/pmJSON.js"}),
+		))
+		if err != nil {
+			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
+			return
+		}
 		t, err := pm.parseTemplates(templatesFS, "superadmin-login.html")
 		if err != nil {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
@@ -340,7 +347,7 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		err := hyperform.UnmarshalForm(w, r, d.Form)
 		fmt.Println(d)
 		if err != nil {
-			hyperform.Redirect(w, r, r.URL.Path, err)
+			hyperform.Redirect(w, r, LocaleURL(r), err)
 			return
 		}
 		http.Redirect(w, r, LocaleURL(r), http.StatusMovedPermanently)

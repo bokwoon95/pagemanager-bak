@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/bokwoon95/erro"
+	"github.com/bokwoon95/pagemanager/hyperform"
 	"github.com/bokwoon95/pagemanager/sq"
 	"github.com/bokwoon95/pagemanager/tables"
 )
@@ -31,6 +32,10 @@ var flagSuperadminSetup = flag.String("pm-superadmin-setup", "", "")
 var bufpool = sync.Pool{
 	New: func() interface{} { return new(bytes.Buffer) },
 }
+
+type attr = hyperform.Attr
+
+var h, txt = hyperform.H, hyperform.Txt
 
 func init() {
 	_, currentFile, _, _ := runtime.Caller(0)
