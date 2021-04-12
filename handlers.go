@@ -328,7 +328,6 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		err := hyperform.UnmarshalForm(w, r, d.Form)
 		fmt.Println(d)
 		if err != nil {
-			fmt.Println("err:", err)
 			hyperform.Redirect(w, r, r.URL.Path, err)
 			return
 		}
