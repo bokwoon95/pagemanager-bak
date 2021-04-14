@@ -1,4 +1,4 @@
-package hypforms
+package hyforms
 
 import (
 	"errors"
@@ -6,12 +6,12 @@ import (
 	"strings"
 
 	"github.com/bokwoon95/erro"
-	"github.com/bokwoon95/pagemanager/hyp"
+	"github.com/bokwoon95/pagemanager/hy"
 )
 
 type Input struct {
 	form         *Form
-	attrs        hyp.Attributes
+	attrs        hy.Attributes
 	inputType    string
 	name         string
 	defaultValue string
@@ -22,7 +22,7 @@ func (i *Input) AppendHTML(buf *strings.Builder) error {
 	i.attrs.Dict["type"] = i.inputType
 	i.attrs.Dict["name"] = i.name
 	i.attrs.Dict["value"] = i.defaultValue
-	err := hyp.AppendHTML(buf, i.attrs, nil)
+	err := hy.AppendHTML(buf, i.attrs, nil)
 	if err != nil {
 		return erro.Wrap(err)
 	}
@@ -34,7 +34,7 @@ func (i *Input) Name() string         { return i.name }
 func (i *Input) DefaultValue() string { return i.defaultValue }
 
 func (i *Input) Set(selector string, attributes map[string]string) *Input {
-	i.attrs = hyp.ParseAttributes(selector, attributes)
+	i.attrs = hy.ParseAttributes(selector, attributes)
 	return i
 }
 
@@ -45,19 +45,6 @@ func (i *Input) Validate(validators ...Validator) *Input {
 	}
 	validate(i.form, i.name, value, validators)
 	return i
-}
-
-type wrapError struct {
-	msg string
-	err error
-}
-
-func (e *wrapError) Error() string {
-	return e.msg
-}
-
-func (e *wrapError) Unwrap() error {
-	return e.err
 }
 
 func ErrOneOf(errs []error, target error) bool {
@@ -129,7 +116,7 @@ func (f *Form) Hidden(name string, defaultValue string) *Input {
 
 type ToggledInput struct {
 	form      *Form
-	attrs     hyp.Attributes
+	attrs     hy.Attributes
 	inputType string
 	name      string
 	value     string
@@ -144,11 +131,11 @@ func (i *ToggledInput) AppendHTML(buf *strings.Builder) error {
 		i.attrs.Dict["value"] = i.value
 	}
 	if i.checked {
-		i.attrs.Dict["checked"] = hyp.Enabled
+		i.attrs.Dict["checked"] = hy.Enabled
 	} else {
-		i.attrs.Dict["checked"] = hyp.Disabled
+		i.attrs.Dict["checked"] = hy.Disabled
 	}
-	err := hyp.AppendHTML(buf, i.attrs, nil)
+	err := hy.AppendHTML(buf, i.attrs, nil)
 	if err != nil {
 		return erro.Wrap(err)
 	}
@@ -170,7 +157,7 @@ func (i *ToggledInput) Type() string  { return i.inputType }
 func (i *ToggledInput) Value() string { return i.value }
 
 func (i *ToggledInput) Set(selector string, attributes map[string]string) *ToggledInput {
-	i.attrs = hyp.ParseAttributes(selector, attributes)
+	i.attrs = hy.ParseAttributes(selector, attributes)
 	return i
 }
 
@@ -242,7 +229,7 @@ func (i *ToggledInputs) Values() []string {
 }
 
 type Opt interface {
-	hyp.Element
+	hy.Element
 	Opt()
 }
 type Opts []Opt
@@ -259,16 +246,16 @@ type Option struct {
 func (o Option) Opt() {}
 
 func (o Option) AppendHTML(buf *strings.Builder) error {
-	attrs := hyp.ParseAttributes(o.Selector, o.Attributes)
+	attrs := hy.ParseAttributes(o.Selector, o.Attributes)
 	attrs.Tag = "option"
 	attrs.Dict["value"] = o.Value
 	if o.Disabled {
-		attrs.Dict["disabled"] = hyp.Enabled
+		attrs.Dict["disabled"] = hy.Enabled
 	}
 	if o.Selected {
-		attrs.Dict["selected"] = hyp.Enabled
+		attrs.Dict["selected"] = hy.Enabled
 	}
-	err := hyp.AppendHTML(buf, attrs, []hyp.Element{hyp.Txt(o.Display)})
+	err := hy.AppendHTML(buf, attrs, []hy.Element{hy.Txt(o.Display)})
 	if err != nil {
 		return erro.Wrap(err)
 	}
@@ -286,17 +273,17 @@ type OptGroup struct {
 func (o OptGroup) Opt() {}
 
 func (o OptGroup) AppendHTML(buf *strings.Builder) error {
-	attrs := hyp.ParseAttributes(o.Selector, o.Attributes)
+	attrs := hy.ParseAttributes(o.Selector, o.Attributes)
 	attrs.Tag = "option"
 	attrs.Dict["label"] = o.Label
 	if o.Disabled {
-		attrs.Dict["disabled"] = hyp.Enabled
+		attrs.Dict["disabled"] = hy.Enabled
 	}
-	elements := make([]hyp.Element, len(o.Options))
+	elements := make([]hy.Element, len(o.Options))
 	for i := range o.Options {
 		elements[i] = o.Options[i]
 	}
-	err := hyp.AppendHTML(buf, attrs, elements)
+	err := hy.AppendHTML(buf, attrs, elements)
 	if err != nil {
 		return erro.Wrap(err)
 	}
@@ -305,17 +292,17 @@ func (o OptGroup) AppendHTML(buf *strings.Builder) error {
 
 type SelectInput struct {
 	form  *Form
-	attrs hyp.Attributes
+	attrs hy.Attributes
 	name  string
 	Opts  Opts
 }
 
 func (i *SelectInput) AppendHTML(buf *strings.Builder) error {
-	elements := make([]hyp.Element, len(i.Opts))
+	elements := make([]hy.Element, len(i.Opts))
 	for j := range i.Opts {
 		elements[j] = i.Opts[j]
 	}
-	err := hyp.AppendHTML(buf, i.attrs, elements)
+	err := hy.AppendHTML(buf, i.attrs, elements)
 	if err != nil {
 		return erro.Wrap(err)
 	}

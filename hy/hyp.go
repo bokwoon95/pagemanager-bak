@@ -1,4 +1,4 @@
-package hyp
+package hy
 
 import (
 	"fmt"
@@ -247,13 +247,13 @@ func AppendHTML(buf *strings.Builder, attrs Attributes, children []Element) erro
 		}
 	}
 	buf.WriteString(`>`)
-	for _, child := range children {
-		err = child.AppendHTML(buf)
-		if err != nil {
-			return erro.Wrap(err)
-		}
-	}
 	if _, ok := singletonElements[strings.ToUpper(attrs.Tag)]; !ok {
+		for _, child := range children {
+			err = child.AppendHTML(buf)
+			if err != nil {
+				return erro.Wrap(err)
+			}
+		}
 		buf.WriteString("</" + attrs.Tag + ">")
 	}
 	return nil

@@ -1,4 +1,4 @@
-package hyp
+package hy
 
 import (
 	"fmt"
@@ -51,7 +51,7 @@ func Test_ParseAttributes(t *testing.T) {
 		attributes := map[string]string{
 			"id":    "id3",
 			"class": "class4 class5 class6",
-			"attr1": "value-1",
+			"attr1": `value-1`,
 			"attr2": "value-2",
 			"attr3": "value-3",
 			"attr4": Disabled,
@@ -91,4 +91,7 @@ func Test_Txt(t *testing.T) {
 	is.True(re.MatchString("91528794"))
 	is.True(re.MatchString("96697695"))
 	is.True(re.MatchString("333"))
+	html, err = Marshal(nil, H("div", Attr{"class": `value" id="value`, "id": "hey"}, Txt(55)))
+	is.NoErr(err)
+	fmt.Println(html)
 }

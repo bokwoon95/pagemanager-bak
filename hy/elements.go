@@ -1,4 +1,4 @@
-package hyp
+package hy
 
 import (
 	"encoding/json"

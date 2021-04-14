@@ -14,8 +14,8 @@ import (
 	"strings"
 
 	"github.com/bokwoon95/erro"
-	"github.com/bokwoon95/pagemanager/hyp"
-	"github.com/bokwoon95/pagemanager/hypforms"
+	"github.com/bokwoon95/pagemanager/hy"
+	"github.com/bokwoon95/pagemanager/hyforms"
 	"github.com/bokwoon95/pagemanager/sq"
 	"github.com/bokwoon95/pagemanager/tables"
 	_ "github.com/mattn/go-sqlite3"
@@ -267,27 +267,30 @@ type superadminLoginData struct {
 	RememberMe bool
 }
 
-func (d *superadminLoginData) Form(form *hypforms.Form) {
-	type attr = hyp.Attr
-	var h, txt = hyp.H, hyp.Txt
-	password := form.Input("password", "pm-superadmin-password", "").Set("#pm-superadmin-password.bg-near-white.pa2.w-100", attr{
-		"required": hyp.Enabled,
+func (d *superadminLoginData) Form(form *hyforms.Form) {
+	// inputs
+	password := form.Input("password", "pm-superadmin-password", "").Set("#pm-superadmin-password.bg-near-white.pa2.w-100", hy.Attr{
+		"required": hy.Enabled,
 	})
 	rememberme := form.Checkbox("remember-me", "", false).Set("#remember-me.pointer", nil)
-	form.Set("#loginform.bg-white", attr{"name": "loginform", "method": "POST", "action": ""})
-	form.Append("div.mv2.pt2", nil, h("label.pointer", attr{"for": "pm-superadmin-password"}, txt("Password:")))
+
+	// form
+	form.Set("#loginform.bg-white", hy.Attr{"name": "loginform", "method": "POST", "action": ""})
+	form.Append("div.mv2.pt2", nil, hy.H("label.pointer", hy.Attr{"for": "pm-superadmin-password"}, hy.Txt("Password:")))
 	form.Append("div", nil, password)
 	if errs := password.Errors(); len(errs) > 0 {
-		div := h("div", nil)
+		div := hy.H("div", nil)
 		for _, err := range password.Errors() {
-			div.Append("div.f6.gray", nil, txt(err.Error()))
+			div.Append("div.f6.gray", nil, hy.Txt(err.Error()))
 		}
 		form.AppendElements(div)
 	}
-	form.Append("div.mv2.pt2", nil, rememberme, h("label.ml1.pointer", attr{"for": "remember-me"}, txt("Remember Me")))
-	form.Append("div.mv2.pt2", nil, h("button.pointer", attr{"type": "submit"}, txt("Log in")))
+	form.Append("div.mv2.pt2", nil, rememberme, hy.H("label.ml1.pointer", hy.Attr{"for": "remember-me"}, hy.Txt("Remember Me")))
+	form.Append("div.mv2.pt2", nil, hy.H("button.pointer", hy.Attr{"type": "submit"}, hy.Txt("Log in")))
+
+	// unmarshal
 	form.Unmarshal(func() {
-		d.Password, _ = password.Validate().Value()
+		d.Password, _ = password.Validate(hyforms.Required).Value()
 		d.RememberMe = rememberme.Checked()
 	})
 }
@@ -312,22 +315,22 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		var err error
 		d := &superadminLoginData{}
-		data.LoginForm, err = hypforms.MarshalForm(nil, r, d.Form)
+		data.LoginForm, err = hyforms.MarshalForm(nil, r, d.Form)
 		if err != nil {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
 			return
 		}
-		data.CSS, err = hyp.Marshal(nil, hyp.Elements{
-			h("link[rel=stylesheet][type=text/css]", attr{"href": "/pm-plugins/pagemanager/tachyons.css"}),
-			h("link[rel=stylesheet][type=text/css]", attr{"href": "/pm-plugins/pagemanager/style.css"}),
+		data.CSS, err = hy.Marshal(nil, hy.Elements{
+			hy.H("link[rel=stylesheet][type=text/css]", hy.Attr{"href": "/pm-plugins/pagemanager/tachyons.css"}),
+			hy.H("link[rel=stylesheet][type=text/css]", hy.Attr{"href": "/pm-plugins/pagemanager/style.css"}),
 		})
 		if err != nil {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
 			return
 		}
-		data.JS, err = hyp.Marshal(nil, hyp.Elements{
-			hyp.JSON("[data-pm-json]", nil, map[string]interface{}{"yeet": 42069}),
-			h("script", attr{"src": "/pm-plugins/pagemanager/pmJSON.js"}),
+		data.JS, err = hy.Marshal(nil, hy.Elements{
+			hy.JSON("[data-pm-json]", nil, map[string]interface{}{"yeet": 42069}),
+			hy.H("script", hy.Attr{"src": "/pm-plugins/pagemanager/pmJSON.js"}),
 		})
 		if err != nil {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
@@ -345,10 +348,11 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	case "POST":
 		var d superadminLoginData
-		err := hypforms.UnmarshalForm(r, d.Form)
+		err := hyforms.UnmarshalForm(r, d.Form)
 		fmt.Println(d)
 		if err != nil {
-			hypforms.Redirect(w, r, LocaleURL(r), err)
+			fmt.Println(err)
+			hyforms.Redirect(w, r, LocaleURL(r), err)
 			return
 		}
 		http.Redirect(w, r, LocaleURL(r), http.StatusMovedPermanently)

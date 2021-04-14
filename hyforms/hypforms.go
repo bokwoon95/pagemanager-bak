@@ -1,4 +1,4 @@
-package hypforms
+package hyforms
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"runtime"
 
 	"github.com/bokwoon95/erro"
-	"github.com/bokwoon95/pagemanager/hyp"
+	"github.com/bokwoon95/pagemanager/hy"
 )
 
 type ValidationErrs struct {
@@ -20,7 +20,7 @@ func (e ValidationErrs) Error() string {
 	return fmt.Sprintf("form errors: %+v, input errors: %+v", e.FormErrs, e.InputErrs)
 }
 
-func MarshalForm(s hyp.Sanitizer, r *http.Request, fn func(*Form)) (template.HTML, error) {
+func MarshalForm(s hy.Sanitizer, r *http.Request, fn func(*Form)) (template.HTML, error) {
 	form := &Form{
 		request:    r,
 		inputNames: make(map[string]struct{}),
@@ -31,7 +31,7 @@ func MarshalForm(s hyp.Sanitizer, r *http.Request, fn func(*Form)) (template.HTM
 	if len(form.formErrs) > 0 || len(form.inputErrs) > 0 {
 		return "", erro.Wrap(ValidationErrs{FormErrs: form.formErrs, InputErrs: form.inputErrs})
 	}
-	output, err := hyp.Marshal(s, form)
+	output, err := hy.Marshal(s, form)
 	if err != nil {
 		return output, erro.Wrap(err)
 	}

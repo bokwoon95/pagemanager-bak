@@ -1,4 +1,4 @@
-package hypforms
+package hyforms
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/bokwoon95/erro"
-	"github.com/bokwoon95/pagemanager/hyp"
+	"github.com/bokwoon95/pagemanager/hy"
 )
 
 type FormMode int
@@ -18,8 +18,8 @@ const (
 
 type Form struct {
 	mode       FormMode
-	attrs      hyp.Attributes
-	children   []hyp.Element
+	attrs      hy.Attributes
+	children   []hy.Element
 	request    *http.Request
 	inputNames map[string]struct{}
 	inputErrs  map[string][]error
@@ -33,7 +33,7 @@ func (f *Form) AppendHTML(buf *strings.Builder) error {
 	// check f.request.Context() for any CSRF token and prepend it into the form as necessary
 	// or should this be done in a hook?
 	f.attrs.Tag = "form"
-	err := hyp.AppendHTML(buf, f.attrs, f.children)
+	err := hy.AppendHTML(buf, f.attrs, f.children)
 	if err != nil {
 		return erro.Wrap(err)
 	}
@@ -48,22 +48,22 @@ func (f *Form) registerName(name string, skip int) {
 	f.inputNames[name] = struct{}{}
 }
 
-func (f *Form) Set(selector string, attributes map[string]string, children ...hyp.Element) {
+func (f *Form) Set(selector string, attributes map[string]string, children ...hy.Element) {
 	if f.mode == FormModeUnmarshal {
 		return
 	}
-	f.attrs = hyp.ParseAttributes(selector, attributes)
+	f.attrs = hy.ParseAttributes(selector, attributes)
 	f.children = children
 }
 
-func (f *Form) Append(selector string, attributes map[string]string, children ...hyp.Element) {
+func (f *Form) Append(selector string, attributes map[string]string, children ...hy.Element) {
 	if f.mode == FormModeUnmarshal {
 		return
 	}
-	f.children = append(f.children, hyp.H(selector, attributes, children...))
+	f.children = append(f.children, hy.H(selector, attributes, children...))
 }
 
-func (f *Form) AppendElements(children ...hyp.Element) {
+func (f *Form) AppendElements(children ...hy.Element) {
 	if f.mode == FormModeUnmarshal {
 		return
 	}
