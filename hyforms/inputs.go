@@ -63,14 +63,14 @@ func (i *Input) Errors() []error {
 	return i.form.inputErrs[i.name]
 }
 
-func (i *Input) Value() (value string, exists bool) {
+func (i *Input) Value() string {
 	if i.form.mode != FormModeUnmarshal {
-		return "", false
+		return ""
 	}
 	if len(i.form.request.Form[i.name]) == 0 {
-		return "", false
+		return ""
 	}
-	return i.form.request.Form[i.name][0], true
+	return i.form.request.Form[i.name][0]
 }
 
 func (i *Input) Int(validators ...Validator) (num int, err error) {

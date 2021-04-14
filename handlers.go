@@ -290,7 +290,7 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 
 	// unmarshal
 	form.Unmarshal(func() {
-		d.Password, _ = password.Validate(hyforms.Required).Value()
+		d.Password = password.Validate(hyforms.Required).Value()
 		d.RememberMe = rememberme.Checked()
 	})
 }

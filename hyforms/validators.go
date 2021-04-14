@@ -59,10 +59,6 @@ func Required(ctx context.Context, value interface{}) (stop bool, err error) {
 	return false, nil
 }
 
-func RequiredTrimspace(ctx context.Context, value interface{}) (stop bool, err error) {
-	return Required(ctx, strings.TrimSpace(hy.Stringify(value)))
-}
-
 // Optional
 
 func Optional(ctx context.Context, value interface{}) (stop bool, err error) {
@@ -74,10 +70,6 @@ func Optional(ctx context.Context, value interface{}) (stop bool, err error) {
 		return true, nil
 	}
 	return false, nil
-}
-
-func OptionalTrimspace(ctx context.Context, value interface{}) (stop bool, err error) {
-	return Optional(ctx, strings.TrimSpace(hy.Stringify(value)))
 }
 
 // IsRegexp

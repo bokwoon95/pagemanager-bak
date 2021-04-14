@@ -81,6 +81,6 @@ func (f *Form) FormError(err error) {
 	f.formErrs = append(f.formErrs, err)
 }
 
-func (f *Form) InputError(name string, err error) {
-	f.inputErrs[name] = append(f.inputErrs[name], err)
+func (f *Form) InputError(name string, errs ...error) {
+	f.inputErrs[name] = append(f.inputErrs[name], errs...)
 }
