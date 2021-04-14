@@ -277,9 +277,9 @@ func (d *superadminLoginData) Form(form *hypforms.Form) {
 	form.Set("#loginform.bg-white", attr{"name": "loginform", "method": "POST", "action": ""})
 	form.Append("div.mv2.pt2", nil, h("label.pointer", attr{"for": "pm-superadmin-password"}, txt("Password:")))
 	form.Append("div", nil, password)
-	if errs := password.Errs(); len(errs) > 0 {
+	if errs := password.Errors(); len(errs) > 0 {
 		div := h("div", nil)
-		for _, err := range password.Errs() {
+		for _, err := range password.Errors() {
 			div.Append("div.f6.gray", nil, txt(err.Error()))
 		}
 		form.AppendElements(div)

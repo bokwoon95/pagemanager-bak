@@ -1,6 +1,7 @@
 package hypforms
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -59,31 +60,16 @@ func (e *wrapError) Unwrap() error {
 	return e.err
 }
 
-func (i *Input) Err() error {
-	if i.form.mode != FormModeUnmarshal {
-		return nil
-	}
-	errs := i.form.inputErrs[i.name]
-	if len(errs) == 0 {
-		return nil
-	}
-	if len(errs) == 1 {
-		return errs[len(errs)-1]
-	}
-	err := &wrapError{
-		msg: errs[len(errs)-2].Error(),
-		err: errs[len(errs)-1],
-	}
-	for j := len(errs) - 3; j >= 0; j-- {
-		err = &wrapError{
-			msg: errs[j].Error(),
-			err: err,
+func ErrOneOf(errs []error, target error) bool {
+	for _, err := range errs {
+		if errors.Is(err, target) {
+			return true
 		}
 	}
-	return err
+	return false
 }
 
-func (i *Input) Errs() []error {
+func (i *Input) Errors() []error {
 	if i.form.mode != FormModeUnmarshal {
 		return nil
 	}
