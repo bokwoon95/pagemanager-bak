@@ -1,0 +1,15 @@
+form.Select("all-over-the-world", hyp.Opts{
+    hypforms.Option{},
+    hypforms.OptGroup("",
+        form.Option(),
+        form.Option(),
+        form.Option(),
+    ),
+})
+
+form.Select("all-over-the-world", hyp.Opts{
+    hypforms.Option{Value: "", Display: ""},
+    hypforms.OptGroup{Label: "", Options: []hypforms.Option{
+        {},
+    }},
+})

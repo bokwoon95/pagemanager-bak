@@ -19,7 +19,7 @@ import (
 	"sync"
 
 	"github.com/bokwoon95/erro"
-	"github.com/bokwoon95/pagemanager/hyperform"
+	"github.com/bokwoon95/pagemanager/hyp"
 	"github.com/bokwoon95/pagemanager/sq"
 	"github.com/bokwoon95/pagemanager/tables"
 )
@@ -33,9 +33,9 @@ var bufpool = sync.Pool{
 	New: func() interface{} { return new(bytes.Buffer) },
 }
 
-type attr = hyperform.Attr
+type attr = hyp.Attr
 
-var h, txt = hyperform.H, hyperform.Txt
+var h, txt = hyp.H, hyp.Txt
 
 func init() {
 	_, currentFile, _, _ := runtime.Caller(0)

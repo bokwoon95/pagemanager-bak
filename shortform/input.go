@@ -1,4 +1,4 @@
-package hyperform
+package shortform
 
 import (
 	"fmt"

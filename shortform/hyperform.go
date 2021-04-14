@@ -1,4 +1,4 @@
-package hyperform
+package shortform
 
 import (
 	"encoding/json"
@@ -61,9 +61,14 @@ var sanitizer = func() *bluemonday.Policy {
 		"as", "crossorigin", "disabled", "href", "hreflang", "imagesizes",
 		"imagesrcset", "media", "rel", "sizes", "title", "type",
 	).OnElements("link")
+	p.AllowStandardURLs()
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#attributes
-	p.AllowElements("script")
+	p.AllowElements("script") // TODO: DANGER
 	p.AllowAttrs("async", "crossorigin", "defer", "integrity", "nomodule", "nonce", "referrerpolicy", "src", "type").OnElements("script")
+
+	p.AllowImages()
+	p.AllowLists()
+	p.AllowTables()
 	return p
 }()
 

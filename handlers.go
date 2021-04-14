@@ -14,7 +14,8 @@ import (
 	"strings"
 
 	"github.com/bokwoon95/erro"
-	"github.com/bokwoon95/pagemanager/hyperform"
+	"github.com/bokwoon95/pagemanager/hyp"
+	"github.com/bokwoon95/pagemanager/hypforms"
 	"github.com/bokwoon95/pagemanager/sq"
 	"github.com/bokwoon95/pagemanager/tables"
 	_ "github.com/mattn/go-sqlite3"
@@ -266,11 +267,11 @@ type superadminLoginData struct {
 	RememberMe bool
 }
 
-func (d *superadminLoginData) Form(form *hyperform.Form) {
-	type attr = hyperform.Attr
-	var h, txt = hyperform.H, hyperform.Txt
+func (d *superadminLoginData) Form(form *hypforms.Form) {
+	type attr = hyp.Attr
+	var h, txt = hyp.H, hyp.Txt
 	password := form.Input("password", "pm-superadmin-password", "").Set("#pm-superadmin-password.bg-near-white.pa2.w-100", attr{
-		"required": hyperform.Enabled,
+		"required": hyp.Enabled,
 	})
 	rememberme := form.Checkbox("remember-me", "").Set("#remember-me.pointer", nil)
 	form.Set("#loginform.bg-white", attr{"name": "loginform", "method": "POST", "action": ""})
@@ -311,12 +312,12 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		var err error
 		d := &superadminLoginData{}
-		data.LoginForm, err = hyperform.MarshalForm(w, r, d.Form)
+		data.LoginForm, err = hypforms.MarshalForm(nil, r, d.Form)
 		if err != nil {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
 			return
 		}
-		data.CSS, err = hyperform.Marshal(w, r, h("", nil,
+		data.CSS, err = hyp.Marshal(nil, h("", nil,
 			h("link[rel=stylesheet][type=text/css]", attr{"href": "/pm-plugins/pagemanager/tachyons.css"}),
 			h("link[rel=stylesheet][type=text/css]", attr{"href": "/pm-plugins/pagemanager/style.css"}),
 		))
@@ -324,8 +325,8 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
 			return
 		}
-		data.JS, err = hyperform.Marshal(w, r, h("", nil,
-			hyperform.JSON("[data-pm-json]", nil, map[string]interface{}{"yeet": 42069}),
+		data.JS, err = hyp.Marshal(nil, h("", nil,
+			hyp.JSON("[data-pm-json]", nil, map[string]interface{}{"yeet": 42069}),
 			h("script", attr{"src": "/pm-plugins/pagemanager/pmJSON.js"}),
 		))
 		if err != nil {
@@ -344,10 +345,10 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	case "POST":
 		var d superadminLoginData
-		err := hyperform.UnmarshalForm(w, r, d.Form)
+		err := hypforms.UnmarshalForm(r, d.Form)
 		fmt.Println(d)
 		if err != nil {
-			hyperform.Redirect(w, r, LocaleURL(r), err)
+			hypforms.Redirect(w, r, LocaleURL(r), err)
 			return
 		}
 		http.Redirect(w, r, LocaleURL(r), http.StatusMovedPermanently)
