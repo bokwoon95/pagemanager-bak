@@ -2,7 +2,11 @@ package hyp
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bokwoon95/erro"
 )
@@ -45,20 +49,49 @@ func (el *HTMLElement) AppendElements(elements ...Element) *HTMLElement {
 	return el
 }
 
-type text string
+type textValue struct {
+	v interface{}
+}
 
-func (t text) AppendHTML(buf *strings.Builder) error {
-	buf.WriteString(string(t))
+func (txt textValue) AppendHTML(buf *strings.Builder) error {
+	switch v := txt.v.(type) {
+	case fmt.Stringer:
+		buf.WriteString(v.String())
+	case string:
+		buf.WriteString(v)
+	case []byte:
+		buf.WriteString(string(v))
+	case time.Time:
+		buf.WriteString(v.Format(time.RFC3339Nano))
+	case error:
+		buf.WriteString(v.Error())
+	default:
+		rv := reflect.ValueOf(txt.v)
+		switch rv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			buf.WriteString(strconv.FormatInt(rv.Int(), 10))
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			buf.WriteString(strconv.FormatUint(rv.Uint(), 10))
+		case reflect.Float64:
+			buf.WriteString(strconv.FormatFloat(rv.Float(), 'g', -1, 64))
+		case reflect.Float32:
+			buf.WriteString(strconv.FormatFloat(rv.Float(), 'g', -1, 32))
+		case reflect.Bool:
+			buf.WriteString(strconv.FormatBool(rv.Bool()))
+		default:
+			buf.WriteString(fmt.Sprintf("%v", txt.v))
+		}
+	}
 	return nil
 }
 
-func Txt(txt string) Element {
-	return text(txt)
+func Txt(v interface{}) Element {
+	return textValue{v: v}
 }
 
-type List []Element
+type Elements []Element
 
-func (l List) AppendHTML(buf *strings.Builder) error {
+func (l Elements) AppendHTML(buf *strings.Builder) error {
 	var err error
 	for _, el := range l {
 		err = el.AppendHTML(buf)

@@ -37,51 +37,93 @@ func (i *Input) Set(selector string, attributes map[string]string) *Input {
 	return i
 }
 
-func (i *Input) Validate(validators ...func(interface{}) error) *Input {
-	value := i.form.request.FormValue(i.name)
+func (i *Input) Validate(validators ...Validator) *Input {
+	var value interface{}
+	if len(i.form.request.Form[i.name]) > 0 {
+		value = i.form.request.Form[i.name][0]
+	}
 	validate(i.form, i.name, value, validators)
 	return i
 }
 
-func (i *Input) Errors() []error {
+type wrapError struct {
+	msg string
+	err error
+}
+
+func (e *wrapError) Error() string {
+	return e.msg
+}
+
+func (e *wrapError) Unwrap() error {
+	return e.err
+}
+
+func (i *Input) Err() error {
+	if i.form.mode != FormModeUnmarshal {
+		return nil
+	}
+	errs := i.form.inputErrs[i.name]
+	if len(errs) == 0 {
+		return nil
+	}
+	if len(errs) == 1 {
+		return errs[len(errs)-1]
+	}
+	err := &wrapError{
+		msg: errs[len(errs)-2].Error(),
+		err: errs[len(errs)-1],
+	}
+	for j := len(errs) - 3; j >= 0; j-- {
+		err = &wrapError{
+			msg: errs[j].Error(),
+			err: err,
+		}
+	}
+	return err
+}
+
+func (i *Input) Errs() []error {
 	if i.form.mode != FormModeUnmarshal {
 		return nil
 	}
 	return i.form.inputErrs[i.name]
 }
 
-func (i *Input) Value() string {
+func (i *Input) Value() (value string, exists bool) {
 	if i.form.mode != FormModeUnmarshal {
-		return ""
+		return "", false
 	}
-	value := i.form.request.FormValue(i.name)
-	return value
+	if len(i.form.request.Form[i.name]) == 0 {
+		return "", false
+	}
+	return i.form.request.Form[i.name][0], true
 }
 
-func (i *Input) Int(validators ...func(interface{}) error) (num int, ok bool) {
+func (i *Input) Int(validators ...Validator) (num int, err error) {
 	if i.form.mode != FormModeUnmarshal {
-		return 0, false
+		return 0, nil
 	}
 	value := i.form.request.FormValue(i.name)
-	num, err := strconv.Atoi(value)
+	num, err = strconv.Atoi(value)
 	if err != nil {
-		return 0, false
+		return 0, erro.Wrap(err)
 	}
 	validate(i.form, i.name, num, validators)
-	return num, true
+	return num, nil
 }
 
-func (i *Input) Float64(validators ...func(interface{}) error) (num float64, ok bool) {
+func (i *Input) Float64(validators ...Validator) (num float64, err error) {
 	if i.form.mode != FormModeUnmarshal {
-		return 0, false
+		return 0, nil
 	}
 	value := i.form.request.FormValue(i.name)
-	num, err := strconv.ParseFloat(value, 64)
+	num, err = strconv.ParseFloat(value, 64)
 	if err != nil {
-		return 0, false
+		return 0, erro.Wrap(err)
 	}
 	validate(i.form, i.name, num, validators)
-	return num, true
+	return num, nil
 }
 
 func (f *Form) Input(inputType string, name string, defaultValue string) *Input {
@@ -105,6 +147,7 @@ type ToggledInput struct {
 	inputType string
 	name      string
 	value     string
+	checked   bool
 }
 
 func (i *ToggledInput) AppendHTML(buf *strings.Builder) error {
@@ -114,6 +157,11 @@ func (i *ToggledInput) AppendHTML(buf *strings.Builder) error {
 	if i.value != "" {
 		i.attrs.Dict["value"] = i.value
 	}
+	if i.checked {
+		i.attrs.Dict["checked"] = hyp.Enabled
+	} else {
+		i.attrs.Dict["checked"] = hyp.Disabled
+	}
 	err := hyp.AppendHTML(buf, i.attrs, nil)
 	if err != nil {
 		return erro.Wrap(err)
@@ -121,14 +169,14 @@ func (i *ToggledInput) AppendHTML(buf *strings.Builder) error {
 	return nil
 }
 
-func (f *Form) Checkbox(name string, value string) *ToggledInput {
+func (f *Form) Checkbox(name string, value string, checked bool) *ToggledInput {
 	f.registerName(name, 1)
-	return &ToggledInput{form: f, inputType: "checkbox", name: name, value: value}
+	return &ToggledInput{form: f, inputType: "checkbox", name: name, value: value, checked: checked}
 }
 
-func (f *Form) Radio(name string, value string) *ToggledInput {
+func (f *Form) Radio(name string, value string, checked bool) *ToggledInput {
 	f.registerName(name, 1)
-	return &ToggledInput{form: f, inputType: "radio", name: name, value: value}
+	return &ToggledInput{form: f, inputType: "radio", name: name, value: value, checked: checked}
 }
 
 func (i *ToggledInput) Name() string  { return i.name }
@@ -137,6 +185,11 @@ func (i *ToggledInput) Value() string { return i.value }
 
 func (i *ToggledInput) Set(selector string, attributes map[string]string) *ToggledInput {
 	i.attrs = hyp.ParseAttributes(selector, attributes)
+	return i
+}
+
+func (i *ToggledInput) Check(b bool) *ToggledInput {
+	i.checked = b
 	return i
 }
 

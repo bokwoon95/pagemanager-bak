@@ -1,6 +1,7 @@
 package hypforms
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -68,15 +69,21 @@ func Redirect(w http.ResponseWriter, r *http.Request, url string, err error) {
 	http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
 
-func validate(f *Form, name string, value interface{}, validators []func(interface{}) error) {
+func validate(f *Form, name string, value interface{}, validators []Validator) {
 	if len(validators) == 0 {
 		return
 	}
+	var stop bool
 	var err error
+	ctx := f.request.Context()
+	ctx = context.WithValue(ctx, contextKey("name"), name)
 	for _, validator := range validators {
-		err = validator(value)
+		stop, err = validator(ctx, value)
 		if err != nil {
 			f.inputErrs[name] = append(f.inputErrs[name], err)
+		}
+		if stop {
+			return
 		}
 	}
 }
