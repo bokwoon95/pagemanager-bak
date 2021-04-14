@@ -53,35 +53,67 @@ type textValue struct {
 	v interface{}
 }
 
-func (txt textValue) AppendHTML(buf *strings.Builder) error {
-	switch v := txt.v.(type) {
+// adapted from database/sql:asString, text/template:printableValue,printValue
+func Stringify(v interface{}) string {
+	switch v := v.(type) {
 	case fmt.Stringer:
-		buf.WriteString(v.String())
+		return v.String()
 	case string:
-		buf.WriteString(v)
+		return v
 	case []byte:
-		buf.WriteString(string(v))
+		return string(v)
 	case time.Time:
-		buf.WriteString(v.Format(time.RFC3339Nano))
+		return v.Format(time.RFC3339Nano)
 	case error:
-		buf.WriteString(v.Error())
-	default:
-		rv := reflect.ValueOf(txt.v)
-		switch rv.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			buf.WriteString(strconv.FormatInt(rv.Int(), 10))
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			buf.WriteString(strconv.FormatUint(rv.Uint(), 10))
-		case reflect.Float64:
-			buf.WriteString(strconv.FormatFloat(rv.Float(), 'g', -1, 64))
-		case reflect.Float32:
-			buf.WriteString(strconv.FormatFloat(rv.Float(), 'g', -1, 32))
-		case reflect.Bool:
-			buf.WriteString(strconv.FormatBool(rv.Bool()))
-		default:
-			buf.WriteString(fmt.Sprintf("%v", txt.v))
-		}
+		return v.Error()
+	case int:
+		return strconv.FormatInt(int64(v), 10)
+	case int8:
+		return strconv.FormatInt(int64(v), 10)
+	case int16:
+		return strconv.FormatInt(int64(v), 10)
+	case int32:
+		return strconv.FormatInt(int64(v), 10)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case uint:
+		return strconv.FormatUint(uint64(v), 10)
+	case uint8:
+		return strconv.FormatUint(uint64(v), 10)
+	case uint16:
+		return strconv.FormatUint(uint64(v), 10)
+	case uint32:
+		return strconv.FormatUint(uint64(v), 10)
+	case uint64:
+		return strconv.FormatUint(v, 10)
+	case float32:
+		return strconv.FormatFloat(float64(v), 'g', -1, 64)
+	case float64:
+		return strconv.FormatFloat(v, 'g', -1, 64)
+	case bool:
+		return strconv.FormatBool(v)
 	}
+	rv := reflect.ValueOf(v)
+	for {
+		if rv.Kind() != reflect.Ptr && rv.Kind() != reflect.Interface {
+			break
+		}
+		rv = rv.Elem()
+	}
+	if !rv.IsValid() {
+		return "<no value>"
+	}
+	if rv.Kind() == reflect.Chan {
+		return "channel"
+	}
+	if rv.Kind() == reflect.Func {
+		return "function"
+	}
+	return fmt.Sprint(v)
+}
+
+func (txt textValue) AppendHTML(buf *strings.Builder) error {
+	buf.WriteString(Stringify(txt.v))
 	return nil
 }
 

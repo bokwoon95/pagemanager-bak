@@ -76,7 +76,7 @@ func validate(f *Form, name string, value interface{}, validators []Validator) {
 	var stop bool
 	var err error
 	ctx := f.request.Context()
-	ctx = context.WithValue(ctx, contextKey("name"), name)
+	ctx = context.WithValue(ctx, contextKeyName, name)
 	for _, validator := range validators {
 		stop, err = validator(ctx, value)
 		if err != nil {
