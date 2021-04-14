@@ -1,6 +1,7 @@
 package hyp
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/bokwoon95/pagemanager/testutil"
@@ -18,14 +19,6 @@ func Test_ParseAttributes(t *testing.T) {
 		assertOK(t, selector, map[string]string{}, Attributes{
 			Selector: selector,
 			Tag:      "div",
-			Dict:     map[string]string{},
-		})
-	})
-	t.Run("body literal", func(t *testing.T) {
-		selector := "<b>hello world!</b>"
-		assertOK(t, selector, map[string]string{}, Attributes{
-			Selector: selector,
-			Body:     "<b>hello world!</b>",
 			Dict:     map[string]string{},
 		})
 	})
@@ -75,4 +68,12 @@ func Test_ParseAttributes(t *testing.T) {
 			},
 		})
 	})
+}
+
+func Test_Txt(t *testing.T) {
+	is := testutil.New(t, testutil.Parallel, testutil.FailFast)
+	div := H("div", nil, Txt(`<div><b>Hello!</b></div>`))
+	html, err := Marshal(nil, div)
+	is.NoErr(err)
+	fmt.Println(html)
 }

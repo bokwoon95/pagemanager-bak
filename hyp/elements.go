@@ -114,7 +114,7 @@ func (el JSONElement) AppendHTML(buf *strings.Builder) error {
 	if err != nil {
 		return erro.Wrap(err)
 	}
-	err = AppendHTML(buf, el.attrs, []Element{text(string(b))})
+	err = AppendHTML(buf, el.attrs, []Element{textValue{v: string(b)}})
 	if err != nil {
 		return erro.Wrap(err)
 	}

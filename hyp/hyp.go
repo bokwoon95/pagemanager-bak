@@ -72,12 +72,12 @@ var defaultSanitizer = func() Sanitizer {
 		"as", "crossorigin", "disabled", "href", "hreflang", "imagesizes",
 		"imagesrcset", "media", "rel", "sizes", "title", "type",
 	).OnElements("link")
-	p.RequireParseableURLs(true)
-	p.AllowRelativeURLs(true)
-	p.AllowURLSchemes("mailto", "http", "https")
+	p.AllowStandardURLs()
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#attributes
 	p.AllowElements("script")
 	p.AllowAttrs("async", "crossorigin", "defer", "integrity", "nomodule", "nonce", "referrerpolicy", "src", "type").OnElements("script")
+
+	p.AllowElements("svg")
 
 	p.AllowImages()
 	p.AllowLists()
@@ -95,7 +95,6 @@ type Attributes struct {
 	ID       string
 	Class    string
 	Dict     map[string]string
-	Body     string
 }
 
 func ParseAttributes(selector string, attributes map[string]string) Attributes {
@@ -116,10 +115,6 @@ func ParseAttributes(selector string, attributes map[string]string) Attributes {
 			}
 		}
 	}()
-	if strings.HasPrefix(selector, "<") && strings.HasSuffix(selector, ">") {
-		attrs.Body = selector
-		return attrs
-	}
 	state := StateTag
 	var classes []string
 	var name []rune
@@ -229,10 +224,6 @@ func AppendHTML(buf *strings.Builder, attrs Attributes, children []Element) erro
 	var err error
 	if attrs.ParseErr != nil {
 		return erro.Wrap(attrs.ParseErr)
-	}
-	if attrs.Body != "" {
-		buf.WriteString(attrs.Body)
-		return nil
 	}
 	if attrs.Tag != "" {
 		buf.WriteString(`<` + attrs.Tag)
