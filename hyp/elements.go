@@ -104,10 +104,10 @@ func Stringify(v interface{}) string {
 		return "<no value>"
 	}
 	if rv.Kind() == reflect.Chan {
-		return "channel"
+		return "<channel>"
 	}
 	if rv.Kind() == reflect.Func {
-		return "function"
+		return "<function>"
 	}
 	return fmt.Sprint(v)
 }
