@@ -56,7 +56,7 @@ func ErrOneOf(errs []error, target error) bool {
 	return false
 }
 
-func (i *Input) Errors() []error {
+func (i *Input) Errs() []error {
 	if i.form.mode != FormModeUnmarshal {
 		return nil
 	}
