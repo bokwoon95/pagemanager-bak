@@ -16,19 +16,19 @@ import (
 )
 
 type ValidationError struct {
-	FormMsgs  []string
-	InputMsgs map[string][]string
+	FormErrMsgs  []string
+	InputErrMsgs map[string][]string
 }
 
 func (e *ValidationError) Error() string {
-	return fmt.Sprintf("form errors: %+v, input errors: %+v", e.FormMsgs, e.InputMsgs)
+	return fmt.Sprintf("form errors: %+v, input errors: %+v", e.FormErrMsgs, e.InputErrMsgs)
 }
 
 func MarshalForm(s hy.Sanitizer, w http.ResponseWriter, r *http.Request, fn func(*Form)) (template.HTML, error) {
 	form := &Form{
 		request:    r,
 		inputNames: make(map[string]struct{}),
-		inputMsgs:  make(map[string][]string),
+		inputErrMsgs:  make(map[string][]string),
 	}
 	func() {
 		c, _ := r.Cookie("hyforms.ValidationError")
@@ -45,12 +45,12 @@ func MarshalForm(s hy.Sanitizer, w http.ResponseWriter, r *http.Request, fn func
 		if err != nil {
 			return
 		}
-		form.formMsgs = validationErr.FormMsgs
-		form.inputMsgs = validationErr.InputMsgs
+		form.formErrMsgs = validationErr.FormErrMsgs
+		form.inputErrMsgs = validationErr.InputErrMsgs
 	}()
 	fn(form)
-	if len(form.marshalMsgs) > 0 {
-		return "", erro.Wrap(fmt.Errorf("marshal errors %v", form.marshalMsgs))
+	if len(form.marshalErrMsgs) > 0 {
+		return "", erro.Wrap(fmt.Errorf("marshal errors %v", form.marshalErrMsgs))
 	}
 	output, err := hy.MarshalElement(s, form)
 	if err != nil {
@@ -61,16 +61,28 @@ func MarshalForm(s hy.Sanitizer, w http.ResponseWriter, r *http.Request, fn func
 
 func UnmarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) error {
 	r.ParseForm()
-	r.ParseMultipartForm(32 << 20)
 	form := &Form{
 		mode:       FormModeUnmarshal,
 		request:    r,
 		inputNames: make(map[string]struct{}),
-		inputMsgs:  make(map[string][]string),
+		inputErrMsgs:  make(map[string][]string),
 	}
 	fn(form)
-	if len(form.formMsgs) > 0 || len(form.inputMsgs) > 0 {
-		return erro.Wrap(&ValidationError{FormMsgs: form.formMsgs, InputMsgs: form.inputMsgs})
+	if len(form.formErrMsgs) > 0 || len(form.inputErrMsgs) > 0 {
+		validationErr := ValidationError{FormErrMsgs: form.formErrMsgs, InputErrMsgs: form.inputErrMsgs}
+		func() {
+			buf := &bytes.Buffer{}
+			err := gob.NewEncoder(buf).Encode(validationErr)
+			if err != nil {
+				return
+			}
+			http.SetCookie(w, &http.Cookie{
+				Name:   "hyforms.ValidationError",
+				Value:  base64.RawURLEncoding.EncodeToString(buf.Bytes()),
+				MaxAge: 5,
+			})
+		}()
+		return erro.Wrap(&ValidationError{FormErrMsgs: form.formErrMsgs, InputErrMsgs: form.inputErrMsgs})
 	}
 	return nil
 }
@@ -107,13 +119,13 @@ func validate(f *Form, name string, value interface{}, validators []Validator) {
 		return
 	}
 	var stop bool
-	var msg string
+	var errMsg string
 	ctx := f.request.Context()
 	ctx = context.WithValue(ctx, ctxKeyName, name)
 	for _, validator := range validators {
-		stop, msg = validator(ctx, value)
-		if msg != "" {
-			f.inputMsgs[name] = append(f.inputMsgs[name], msg)
+		stop, errMsg = validator(ctx, value)
+		if errMsg != "" {
+			f.inputErrMsgs[name] = append(f.inputErrMsgs[name], errMsg)
 		}
 		if stop {
 			return

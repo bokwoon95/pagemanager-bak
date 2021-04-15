@@ -47,8 +47,8 @@ func (i *Input) Validate(validators ...Validator) *Input {
 	return i
 }
 
-func MsgsContain(msgs []string, target string) bool {
-	for _, msg := range msgs {
+func ErrMsgsMatch(errMsgs []string, target string) bool {
+	for _, msg := range errMsgs {
 		if strings.Contains(msg, target) {
 			return true
 		}
@@ -56,8 +56,8 @@ func MsgsContain(msgs []string, target string) bool {
 	return false
 }
 
-func (i *Input) Msgs() []string {
-	return i.form.inputMsgs[i.name]
+func (i *Input) ErrMsgs() []string {
+	return i.form.inputErrMsgs[i.name]
 }
 
 func (i *Input) Value() string {
@@ -164,8 +164,8 @@ func (i *ToggledInput) Check(b bool) *ToggledInput {
 	return i
 }
 
-func (i *ToggledInput) Msgs() []string {
-	return i.form.inputMsgs[i.name]
+func (i *ToggledInput) ErrMsgs() []string {
+	return i.form.inputErrMsgs[i.name]
 }
 
 func (i *ToggledInput) Checked() bool {

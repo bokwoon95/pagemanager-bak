@@ -281,11 +281,11 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 	form.Set("#loginform.bg-white", hy.Attr{"name": "loginform", "method": "POST", "action": ""})
 	form.Append("div.mv2.pt2", nil, hy.H("label.pointer", hy.Attr{"for": password.ID()}, hy.Txt("Password:")))
 	form.Append("div", nil, password)
-	if hyforms.MsgsContain(password.Msgs(), hyforms.NoneOfMsg) {
+	if hyforms.ErrMsgsMatch(password.ErrMsgs(), hyforms.NoneOfErrMsg) {
 		form.Append("div.f7.red", nil, hy.Txt("your password is one of the blacklisted passwords, please try another one"))
 	}
 	form.Append("div.mv2.pt2", nil, rememberme, hy.H("label.ml1.pointer", hy.Attr{"for": rememberme.ID()}, hy.Txt("Remember Me")))
-	if hyforms.MsgsContain(rememberme.Msgs(), acceptTOSMsg) {
+	if hyforms.ErrMsgsMatch(rememberme.ErrMsgs(), acceptTOSMsg) {
 		form.Append("div.f7.red", nil, hy.Txt("You need to accept our terms and conditions"))
 	}
 	form.Append("div.mv2.pt2", nil, hy.H("button.pointer", hy.Attr{"type": "submit"}, hy.Txt("Log in")))
@@ -295,7 +295,7 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 		d.Password = password.Validate(hyforms.Required, hyforms.NoneOf("1234")).Value()
 		d.RememberMe = rememberme.Checked()
 		if !d.RememberMe {
-			form.AppendInputMsgs(rememberme.Name(), acceptTOSMsg)
+			form.AddInputErrMsgs(rememberme.Name(), acceptTOSMsg)
 		}
 	})
 }
@@ -347,7 +347,7 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		err := hyforms.UnmarshalForm(w, r, d.Form)
 		fmt.Println(d)
 		if err != nil {
-			hyforms.Redirect(w, r, LocaleURL(r), err)
+			http.Redirect(w, r, LocaleURL(r), http.StatusMovedPermanently)
 			return
 		}
 		http.Redirect(w, r, LocaleURL(r), http.StatusMovedPermanently)
