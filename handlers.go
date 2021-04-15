@@ -287,6 +287,8 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 		}
 		form.AppendElements(div)
 	}
+	if hyforms.MsgsContain(password.Msgs(), hyforms.RequiredMsg) {
+	}
 	form.Append("div.mv2.pt2", nil, rememberme, hy.H("label.ml1.pointer", hy.Attr{"for": rememberme.ID()}, hy.Txt("Remember Me")))
 	form.Append("div.mv2.pt2", nil, hy.H("button.pointer", hy.Attr{"type": "submit"}, hy.Txt("Log in")))
 

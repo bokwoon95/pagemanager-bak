@@ -11,25 +11,25 @@ import (
 	"github.com/bokwoon95/pagemanager/hy"
 )
 
-type ValidationErrs struct {
-	FormErrs  []string
-	InputErrs map[string][]string
+type ValidationError struct {
+	FormMsgs  []string
+	InputMsgs map[string][]string
 }
 
-func (e ValidationErrs) Error() string {
-	return fmt.Sprintf("form errors: %+v, input errors: %+v", e.FormErrs, e.InputErrs)
+func (e *ValidationError) Error() string {
+	return fmt.Sprintf("form errors: %+v, input errors: %+v", e.FormMsgs, e.InputMsgs)
 }
 
 func MarshalForm(s hy.Sanitizer, r *http.Request, fn func(*Form)) (template.HTML, error) {
 	form := &Form{
 		request:    r,
 		inputNames: make(map[string]struct{}),
-		inputErrs:  make(map[string][]string),
+		inputMsgs:  make(map[string][]string),
 	}
 	// read the cookies from the request and ungob any ValidationErrs
 	fn(form)
-	if len(form.formErrs) > 0 || len(form.inputErrs) > 0 {
-		return "", erro.Wrap(ValidationErrs{FormErrs: form.formErrs, InputErrs: form.inputErrs})
+	if len(form.formMsgs) > 0 || len(form.inputMsgs) > 0 {
+		return "", erro.Wrap(&ValidationError{FormMsgs: form.formMsgs, InputMsgs: form.inputMsgs})
 	}
 	output, err := hy.Marshal(s, form)
 	if err != nil {
@@ -45,11 +45,11 @@ func UnmarshalForm(r *http.Request, fn func(*Form)) error {
 		mode:       FormModeUnmarshal,
 		request:    r,
 		inputNames: make(map[string]struct{}),
-		inputErrs:  make(map[string][]string),
+		inputMsgs:  make(map[string][]string),
 	}
 	fn(form)
-	if len(form.formErrs) > 0 || len(form.inputErrs) > 0 {
-		return erro.Wrap(ValidationErrs{FormErrs: form.formErrs, InputErrs: form.inputErrs})
+	if len(form.formMsgs) > 0 || len(form.inputMsgs) > 0 {
+		return erro.Wrap(&ValidationError{FormMsgs: form.formMsgs, InputMsgs: form.inputMsgs})
 	}
 	return nil
 }
@@ -80,7 +80,7 @@ func validate(f *Form, name string, value interface{}, validators []Validator) {
 	for _, validator := range validators {
 		stop, msg = validator(ctx, value)
 		if msg != "" {
-			f.inputErrs[name] = append(f.inputErrs[name], msg)
+			f.inputMsgs[name] = append(f.inputMsgs[name], msg)
 		}
 		if stop {
 			return

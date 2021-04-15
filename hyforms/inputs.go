@@ -60,7 +60,7 @@ func (i *Input) Msgs() []string {
 	if i.form.mode != FormModeUnmarshal {
 		return nil
 	}
-	return i.form.inputErrs[i.name]
+	return i.form.inputMsgs[i.name]
 }
 
 func (i *Input) Value() string {

@@ -48,7 +48,7 @@ func deocrateMsg(ctx context.Context, msg string, value string) string {
 	return fmt.Sprintf("%s: value=%s, name=%s", msg, value, name)
 }
 
-const RequiredErr = "field required"
+const RequiredMsg = "field required"
 
 func Required(ctx context.Context, value interface{}) (stop bool, msg string) {
 	var str string
@@ -56,7 +56,7 @@ func Required(ctx context.Context, value interface{}) (stop bool, msg string) {
 		str = hy.Stringify(value)
 	}
 	if str == "" {
-		return true, deocrateMsg(ctx, RequiredErr, str)
+		return true, deocrateMsg(ctx, RequiredMsg, str)
 	}
 	return false, ""
 }
@@ -76,7 +76,7 @@ func Optional(ctx context.Context, value interface{}) (stop bool, msg string) {
 
 // IsRegexp
 
-const IsRegexpErr = "value failed regexp match"
+const IsRegexpMsg = "value failed regexp match"
 
 func IsRegexp(re *regexp.Regexp) Validator {
 	return func(ctx context.Context, value interface{}) (stop bool, msg string) {
@@ -85,7 +85,7 @@ func IsRegexp(re *regexp.Regexp) Validator {
 			str = hy.Stringify(value)
 		}
 		if !re.MatchString(str) {
-			return false, deocrateMsg(ctx, fmt.Sprintf("%s %s", IsRegexpErr, re), str)
+			return false, deocrateMsg(ctx, fmt.Sprintf("%s %s", IsRegexpMsg, re), str)
 		}
 		return false, ""
 	}
@@ -98,7 +98,7 @@ var emailRegexp = regexp.MustCompile( // https://emailregex.com/
 		`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")` +
 		`@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])`)
 
-const IsEmailErr = "value is not an email"
+const IsEmailMsg = "value is not an email"
 
 func IsEmail(ctx context.Context, value interface{}) (stop bool, msg string) {
 	var str string
@@ -106,7 +106,7 @@ func IsEmail(ctx context.Context, value interface{}) (stop bool, msg string) {
 		str = hy.Stringify(value)
 	}
 	if !emailRegexp.MatchString(str) {
-		return false, deocrateMsg(ctx, IsEmailErr, str)
+		return false, deocrateMsg(ctx, IsEmailMsg, str)
 	}
 	return false, ""
 }
@@ -116,7 +116,7 @@ func IsEmail(ctx context.Context, value interface{}) (stop bool, msg string) {
 // copied from govalidator:rxURL
 var urlRegexp = regexp.MustCompile(`^((ftp|tcp|udp|wss?|https?):\/\/)?(\S+(:\S*)?@)?((([1-9]\d?|1\d\d|2[01]\d|22[0-3]|24\d|25[0-5])(\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])){2}(?:\.([0-9]\d?|1\d\d|2[0-4]\d|25[0-5]))|(\[(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))\])|(([a-zA-Z0-9]([a-zA-Z0-9-_]+)?[a-zA-Z0-9]([-\.][a-zA-Z0-9]+)*)|(((www\.)|([a-zA-Z0-9]+([-_\.]?[a-zA-Z0-9])*[a-zA-Z0-9]\.[a-zA-Z0-9]+))?))?(([a-zA-Z\x{00a1}-\x{ffff}0-9]+-?-?)*[a-zA-Z\x{00a1}-\x{ffff}0-9]+)(?:\.([a-zA-Z\x{00a1}-\x{ffff}]{1,}))?))\.?(:(\d{1,5}))?((\/|\?|#)[^\s]*)?$`)
 
-const IsURLErr = "value is not a URL"
+const IsURLMsg = "value is not a URL"
 
 // copied from govalidator:IsURL
 func IsURL(ctx context.Context, value interface{}) (stop bool, msg string) {
@@ -127,7 +127,7 @@ func IsURL(ctx context.Context, value interface{}) (stop bool, msg string) {
 		str = hy.Stringify(value)
 	}
 	if str == "" || utf8.RuneCountInString(str) >= maxURLRuneCount || len(str) <= minURLRuneCount || strings.HasPrefix(str, ".") {
-		return false, deocrateMsg(ctx, IsURLErr, str)
+		return false, deocrateMsg(ctx, IsURLMsg, str)
 	}
 	strTemp := str
 	if strings.Contains(str, ":") && !strings.Contains(str, "://") {
@@ -137,23 +137,23 @@ func IsURL(ctx context.Context, value interface{}) (stop bool, msg string) {
 	}
 	u, err := url.Parse(strTemp)
 	if err != nil {
-		return false, deocrateMsg(ctx, IsURLErr, str)
+		return false, deocrateMsg(ctx, IsURLMsg, str)
 	}
 	if strings.HasPrefix(u.Host, ".") {
-		return false, deocrateMsg(ctx, IsURLErr, str)
+		return false, deocrateMsg(ctx, IsURLMsg, str)
 	}
 	if u.Host == "" && (u.Path != "" && !strings.Contains(u.Path, ".")) {
-		return false, deocrateMsg(ctx, IsURLErr, str)
+		return false, deocrateMsg(ctx, IsURLMsg, str)
 	}
 	if !urlRegexp.MatchString(str) {
-		return false, deocrateMsg(ctx, IsURLErr, str)
+		return false, deocrateMsg(ctx, IsURLMsg, str)
 	}
 	return false, ""
 }
 
 // AnyOf
 
-const AnyOfErr = "value is not any the allowed strings"
+const AnyOfMsg = "value is not any the allowed strings"
 
 func AnyOf(targets ...string) Validator {
 	return func(ctx context.Context, value interface{}) (stop bool, msg string) {
@@ -166,13 +166,13 @@ func AnyOf(targets ...string) Validator {
 				return false, ""
 			}
 		}
-		return false, deocrateMsg(ctx, fmt.Sprintf("%s (%s)", AnyOfErr, strings.Join(targets, " | ")), str)
+		return false, deocrateMsg(ctx, fmt.Sprintf("%s (%s)", AnyOfMsg, strings.Join(targets, " | ")), str)
 	}
 }
 
 // NoneOf
 
-const NoneOfErr = "value is one of the disallowed strings"
+const NoneOfMsg = "value is one of the disallowed strings"
 
 func NoneOf(targets ...string) Validator {
 	return func(ctx context.Context, value interface{}) (stop bool, msg string) {
@@ -182,7 +182,7 @@ func NoneOf(targets ...string) Validator {
 		}
 		for _, target := range targets {
 			if target == str {
-				return false, deocrateMsg(ctx, fmt.Sprintf("%s (%s)", NoneOfErr, strings.Join(targets, " | ")), str)
+				return false, deocrateMsg(ctx, fmt.Sprintf("%s (%s)", NoneOfMsg, strings.Join(targets, " | ")), str)
 			}
 		}
 		return false, ""
@@ -191,7 +191,7 @@ func NoneOf(targets ...string) Validator {
 
 // LengthGt, LengthGe, LengthLt, LengthLe
 
-const LengthGtErr = "value length is not greater than"
+const LengthGtMsg = "value length is not greater than"
 
 func LengthGt(length int) Validator {
 	return func(ctx context.Context, value interface{}) (stop bool, msg string) {
@@ -200,13 +200,13 @@ func LengthGt(length int) Validator {
 			str = hy.Stringify(value)
 		}
 		if utf8.RuneCountInString(str) <= length {
-			return false, deocrateMsg(ctx, fmt.Sprintf("%s %d", LengthGtErr, length), str)
+			return false, deocrateMsg(ctx, fmt.Sprintf("%s %d", LengthGtMsg, length), str)
 		}
 		return false, ""
 	}
 }
 
-const LengthGeErr = "value length is not greater than or equal to"
+const LengthGeMsg = "value length is not greater than or equal to"
 
 func LengthGe(length int) Validator {
 	return func(ctx context.Context, value interface{}) (stop bool, msg string) {
@@ -215,13 +215,13 @@ func LengthGe(length int) Validator {
 			str = hy.Stringify(value)
 		}
 		if utf8.RuneCountInString(str) < length {
-			return false, deocrateMsg(ctx, fmt.Sprintf("%s %d", LengthGeErr, length), str)
+			return false, deocrateMsg(ctx, fmt.Sprintf("%s %d", LengthGeMsg, length), str)
 		}
 		return false, ""
 	}
 }
 
-const LengthLtErr = "value length is not less than"
+const LengthLtMsg = "value length is not less than"
 
 func LengthLt(length int) Validator {
 	return func(ctx context.Context, value interface{}) (stop bool, msg string) {
@@ -230,13 +230,13 @@ func LengthLt(length int) Validator {
 			str = hy.Stringify(value)
 		}
 		if utf8.RuneCountInString(str) >= length {
-			return false, deocrateMsg(ctx, fmt.Sprintf("%s %d", LengthLtErr, length), str)
+			return false, deocrateMsg(ctx, fmt.Sprintf("%s %d", LengthLtMsg, length), str)
 		}
 		return false, ""
 	}
 }
 
-const LengthLeErr = "value length is not less than or equal to"
+const LengthLeMsg = "value length is not less than or equal to"
 
 func LengthLe(length int) Validator {
 	return func(ctx context.Context, value interface{}) (stop bool, msg string) {
@@ -245,7 +245,7 @@ func LengthLe(length int) Validator {
 			str = hy.Stringify(value)
 		}
 		if utf8.RuneCountInString(str) > length {
-			return false, deocrateMsg(ctx, fmt.Sprintf("%s %d", LengthLeErr, length), str)
+			return false, deocrateMsg(ctx, fmt.Sprintf("%s %d", LengthLeMsg, length), str)
 		}
 		return false, ""
 	}
