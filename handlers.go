@@ -280,21 +280,15 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 	form.Set("#loginform.bg-white", hy.Attr{"name": "loginform", "method": "POST", "action": ""})
 	form.Append("div.mv2.pt2", nil, hy.H("label.pointer", hy.Attr{"for": password.ID()}, hy.Txt("Password:")))
 	form.Append("div", nil, password)
-	if msgs := password.Msgs(); len(msgs) > 0 {
-		div := hy.H("div", nil)
-		for _, msg := range msgs {
-			div.Append("div.f6.gray", nil, hy.Txt(msg))
-		}
-		form.AppendElements(div)
-	}
-	if hyforms.MsgsContain(password.Msgs(), hyforms.RequiredMsg) {
+	if hyforms.MsgsContain(password.Msgs(), hyforms.NoneOfMsg) {
+		form.Append("div.f6.gray", nil, hy.Txt("your password is one of the blacklisted passwords, please try another one"))
 	}
 	form.Append("div.mv2.pt2", nil, rememberme, hy.H("label.ml1.pointer", hy.Attr{"for": rememberme.ID()}, hy.Txt("Remember Me")))
 	form.Append("div.mv2.pt2", nil, hy.H("button.pointer", hy.Attr{"type": "submit"}, hy.Txt("Log in")))
 
 	// unmarshal
 	form.Unmarshal(func() {
-		d.Password = password.Validate(hyforms.Required).Value()
+		d.Password = password.Validate(hyforms.Required, hyforms.NoneOf("1234")).Value()
 		d.RememberMe = rememberme.Checked()
 	})
 }
@@ -310,12 +304,12 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		data := Data{}
 		var err error
 		d := &superadminLoginData{}
-		data.LoginForm, err = hyforms.MarshalForm(nil, r, d.Form)
+		data.LoginForm, err = hyforms.MarshalForm(nil, w, r, d.Form)
 		if err != nil {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
 			return
 		}
-		data.CSS, err = hy.Marshal(nil, hy.Elements{
+		data.CSS, err = hy.MarshalElement(nil, hy.Elements{
 			hy.H("link[rel=stylesheet][type=text/css]", hy.Attr{"href": "/pm-plugins/pagemanager/tachyons.css"}),
 			hy.H("link[rel=stylesheet][type=text/css]", hy.Attr{"href": "/pm-plugins/pagemanager/style.css"}),
 		})
@@ -323,7 +317,7 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
 			return
 		}
-		data.JS, err = hy.Marshal(nil, hy.Elements{
+		data.JS, err = hy.MarshalElement(nil, hy.Elements{
 			hy.JSON("[data-pm-json]", nil, map[string]interface{}{"yeet": 42069}),
 			hy.H("script", hy.Attr{"src": "/pm-plugins/pagemanager/pmJSON.js"}),
 		})
@@ -343,10 +337,9 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	case "POST":
 		var d superadminLoginData
-		err := hyforms.UnmarshalForm(r, d.Form)
+		err := hyforms.UnmarshalForm(w, r, d.Form)
 		fmt.Println(d)
 		if err != nil {
-			fmt.Println(err)
 			hyforms.Redirect(w, r, LocaleURL(r), err)
 			return
 		}

@@ -57,9 +57,6 @@ func MsgsContain(msgs []string, target string) bool {
 }
 
 func (i *Input) Msgs() []string {
-	if i.form.mode != FormModeUnmarshal {
-		return nil
-	}
 	return i.form.inputMsgs[i.name]
 }
 

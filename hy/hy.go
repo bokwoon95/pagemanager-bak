@@ -259,7 +259,7 @@ func AppendHTML(buf *strings.Builder, attrs Attributes, children []Element) erro
 	return nil
 }
 
-func Marshal(s Sanitizer, el Element) (template.HTML, error) {
+func MarshalElement(s Sanitizer, el Element) (template.HTML, error) {
 	buf := bufpool.Get().(*strings.Builder)
 	defer func() {
 		buf.Reset()

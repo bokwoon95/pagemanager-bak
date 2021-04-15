@@ -17,13 +17,14 @@ const (
 )
 
 type Form struct {
-	mode       FormMode
-	attrs      hy.Attributes
-	children   []hy.Element
-	request    *http.Request
-	inputNames map[string]struct{}
-	inputMsgs  map[string][]string
-	formMsgs   []string
+	mode        FormMode
+	attrs       hy.Attributes
+	children    []hy.Element
+	request     *http.Request
+	inputNames  map[string]struct{}
+	inputMsgs   map[string][]string
+	formMsgs    []string
+	marshalMsgs []string
 }
 
 func (f *Form) AppendHTML(buf *strings.Builder) error {
@@ -43,7 +44,7 @@ func (f *Form) AppendHTML(buf *strings.Builder) error {
 func (f *Form) registerName(name string, skip int) {
 	if _, ok := f.inputNames[name]; ok {
 		file, line, _ := caller(skip + 1)
-		f.formMsgs = append(f.formMsgs, fmt.Sprintf("%s:%d duplicate name: %s", file, line, name))
+		f.marshalMsgs = append(f.marshalMsgs, fmt.Sprintf("%s:%d duplicate name: %s", file, line, name))
 	}
 	f.inputNames[name] = struct{}{}
 }

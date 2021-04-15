@@ -74,7 +74,7 @@ func Test_ParseAttributes(t *testing.T) {
 func Test_Txt(t *testing.T) {
 	is := testutil.New(t, testutil.Parallel)
 	div := H("div", nil, Txt(`<div><b>Hello!</b></div>`))
-	html, err := Marshal(nil, div)
+	html, err := MarshalElement(nil, div)
 	is.NoErr(err)
 	fmt.Println(html)
 	re := regexp.MustCompile(
@@ -91,7 +91,7 @@ func Test_Txt(t *testing.T) {
 	is.True(re.MatchString("91528794"))
 	is.True(re.MatchString("96697695"))
 	is.True(re.MatchString("333"))
-	html, err = Marshal(nil, H("div", Attr{"class": `value" id="value`, "id": "hey"}, Txt(55)))
+	html, err = MarshalElement(nil, H("div", Attr{"class": `value" id="value`, "id": "hey"}, Txt(55)))
 	is.NoErr(err)
 	fmt.Println(html)
 }
