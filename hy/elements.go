@@ -64,8 +64,6 @@ func Stringify(v interface{}) string {
 		return string(v)
 	case time.Time:
 		return v.Format(time.RFC3339Nano)
-	case error:
-		return v.Error()
 	case int:
 		return strconv.FormatInt(int64(v), 10)
 	case int8:
@@ -146,7 +144,7 @@ func (el JSONElement) AppendHTML(buf *strings.Builder) error {
 	if err != nil {
 		return erro.Wrap(err)
 	}
-	err = AppendHTML(buf, el.attrs, []Element{textValue{v: string(b)}})
+	err = AppendHTML(buf, el.attrs, []Element{Txt(b)})
 	if err != nil {
 		return erro.Wrap(err)
 	}

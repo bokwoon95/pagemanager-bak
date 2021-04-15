@@ -280,10 +280,10 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 	form.Set("#loginform.bg-white", hy.Attr{"name": "loginform", "method": "POST", "action": ""})
 	form.Append("div.mv2.pt2", nil, hy.H("label.pointer", hy.Attr{"for": password.ID()}, hy.Txt("Password:")))
 	form.Append("div", nil, password)
-	if errs := password.Errs(); len(errs) > 0 {
+	if msgs := password.Msgs(); len(msgs) > 0 {
 		div := hy.H("div", nil)
-		for _, err := range password.Errs() {
-			div.Append("div.f6.gray", nil, hy.Txt(err.Error()))
+		for _, msg := range msgs {
+			div.Append("div.f6.gray", nil, hy.Txt(msg))
 		}
 		form.AppendElements(div)
 	}

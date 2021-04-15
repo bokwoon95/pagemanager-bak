@@ -12,8 +12,8 @@ import (
 )
 
 type ValidationErrs struct {
-	FormErrs  []error
-	InputErrs map[string][]error
+	FormErrs  []string
+	InputErrs map[string][]string
 }
 
 func (e ValidationErrs) Error() string {
@@ -24,7 +24,7 @@ func MarshalForm(s hy.Sanitizer, r *http.Request, fn func(*Form)) (template.HTML
 	form := &Form{
 		request:    r,
 		inputNames: make(map[string]struct{}),
-		inputErrs:  make(map[string][]error),
+		inputErrs:  make(map[string][]string),
 	}
 	// read the cookies from the request and ungob any ValidationErrs
 	fn(form)
@@ -45,7 +45,7 @@ func UnmarshalForm(r *http.Request, fn func(*Form)) error {
 		mode:       FormModeUnmarshal,
 		request:    r,
 		inputNames: make(map[string]struct{}),
-		inputErrs:  make(map[string][]error),
+		inputErrs:  make(map[string][]string),
 	}
 	fn(form)
 	if len(form.formErrs) > 0 || len(form.inputErrs) > 0 {
@@ -74,13 +74,13 @@ func validate(f *Form, name string, value interface{}, validators []Validator) {
 		return
 	}
 	var stop bool
-	var err error
+	var msg string
 	ctx := f.request.Context()
 	ctx = context.WithValue(ctx, ctxKeyName, name)
 	for _, validator := range validators {
-		stop, err = validator(ctx, value)
-		if err != nil {
-			f.inputErrs[name] = append(f.inputErrs[name], err)
+		stop, msg = validator(ctx, value)
+		if msg != "" {
+			f.inputErrs[name] = append(f.inputErrs[name], msg)
 		}
 		if stop {
 			return

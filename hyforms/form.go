@@ -22,8 +22,8 @@ type Form struct {
 	children   []hy.Element
 	request    *http.Request
 	inputNames map[string]struct{}
-	inputErrs  map[string][]error
-	formErrs   []error
+	inputErrs  map[string][]string
+	formErrs   []string
 }
 
 func (f *Form) AppendHTML(buf *strings.Builder) error {
@@ -43,7 +43,7 @@ func (f *Form) AppendHTML(buf *strings.Builder) error {
 func (f *Form) registerName(name string, skip int) {
 	if _, ok := f.inputNames[name]; ok {
 		file, line, _ := caller(skip + 1)
-		f.formErrs = append(f.formErrs, fmt.Errorf("%s:%d duplicate name: %s", file, line, name))
+		f.formErrs = append(f.formErrs, fmt.Sprintf("%s:%d duplicate name: %s", file, line, name))
 	}
 	f.inputNames[name] = struct{}{}
 }
@@ -77,10 +77,10 @@ func (f *Form) Unmarshal(unmarshaller func()) {
 	unmarshaller()
 }
 
-func (f *Form) AppendFormErrs(errs ...error) {
-	f.formErrs = append(f.formErrs, errs...)
+func (f *Form) AppendFormErrs(msgs ...string) {
+	f.formErrs = append(f.formErrs, msgs...)
 }
 
-func (f *Form) AppendInputErrs(name string, errs ...error) {
-	f.inputErrs[name] = append(f.inputErrs[name], errs...)
+func (f *Form) AppendInputErrs(name string, msgs ...string) {
+	f.inputErrs[name] = append(f.inputErrs[name], msgs...)
 }

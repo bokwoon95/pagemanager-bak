@@ -1,7 +1,6 @@
 package hyforms
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 
@@ -48,16 +47,16 @@ func (i *Input) Validate(validators ...Validator) *Input {
 	return i
 }
 
-func ErrOneOf(errs []error, target error) bool {
-	for _, err := range errs {
-		if errors.Is(err, target) {
+func MsgsContain(msgs []string, target string) bool {
+	for _, msg := range msgs {
+		if strings.Contains(msg, target) {
 			return true
 		}
 	}
 	return false
 }
 
-func (i *Input) Errs() []error {
+func (i *Input) Msgs() []string {
 	if i.form.mode != FormModeUnmarshal {
 		return nil
 	}

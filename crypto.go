@@ -150,8 +150,9 @@ func readPassword(prompt string) (pw []byte, err error) {
 }
 
 func encrypt(key []byte, plaintext string) (ciphertext string, err error) {
+	const nonceSize = 24
 	hashedKey := blake2b.Sum256(key)
-	var nonce [24]byte
+	var nonce [nonceSize]byte
 	if _, err := rand.Read(nonce[:]); err != nil {
 		return "", erro.Wrap(err)
 	}
@@ -161,14 +162,15 @@ func encrypt(key []byte, plaintext string) (ciphertext string, err error) {
 }
 
 func decrypt(key []byte, ciphertext string) (plaintext string, ok bool, err error) {
+	const nonceSize = 24
 	hashedKey := blake2b.Sum256(key)
 	ciphertextBytes, err := base64.RawURLEncoding.DecodeString(ciphertext)
 	if err != nil {
 		return "", false, erro.Wrap(err)
 	}
-	var nonce [24]byte
-	copy(nonce[:], ciphertextBytes[:24])
-	plaintextBytes, ok := secretbox.Open(nil, ciphertextBytes[24:], &nonce, &hashedKey)
+	var nonce [nonceSize]byte
+	copy(nonce[:], ciphertextBytes[:nonceSize])
+	plaintextBytes, ok := secretbox.Open(nil, ciphertextBytes[nonceSize:], &nonce, &hashedKey)
 	if !ok {
 		return "", false, erro.Wrap(fmt.Errorf("decryption error"))
 	}
