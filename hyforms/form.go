@@ -78,10 +78,10 @@ func (f *Form) Unmarshal(unmarshaller func()) {
 	unmarshaller()
 }
 
-func (f *Form) AppendFormErrs(msgs ...string) {
+func (f *Form) AppendFormMsgs(msgs ...string) {
 	f.formMsgs = append(f.formMsgs, msgs...)
 }
 
-func (f *Form) AppendInputErrs(name string, msgs ...string) {
-	f.inputMsgs[name] = append(f.inputMsgs[name], msgs...)
+func (f *Form) AppendInputMsgs(inputName string, msgs ...string) {
+	f.inputMsgs[inputName] = append(f.inputMsgs[inputName], msgs...)
 }

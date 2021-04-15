@@ -268,6 +268,7 @@ type superadminLoginData struct {
 }
 
 func (d *superadminLoginData) Form(form *hyforms.Form) {
+	const acceptTOSMsg = "need to accept our TOS"
 	// inputs
 	password := form.
 		Input("password", "pm-superadmin-password", "").
@@ -281,15 +282,21 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 	form.Append("div.mv2.pt2", nil, hy.H("label.pointer", hy.Attr{"for": password.ID()}, hy.Txt("Password:")))
 	form.Append("div", nil, password)
 	if hyforms.MsgsContain(password.Msgs(), hyforms.NoneOfMsg) {
-		form.Append("div.f6.gray", nil, hy.Txt("your password is one of the blacklisted passwords, please try another one"))
+		form.Append("div.f7.red", nil, hy.Txt("your password is one of the blacklisted passwords, please try another one"))
 	}
 	form.Append("div.mv2.pt2", nil, rememberme, hy.H("label.ml1.pointer", hy.Attr{"for": rememberme.ID()}, hy.Txt("Remember Me")))
+	if hyforms.MsgsContain(rememberme.Msgs(), acceptTOSMsg) {
+		form.Append("div.f7.red", nil, hy.Txt("You need to accept our terms and conditions"))
+	}
 	form.Append("div.mv2.pt2", nil, hy.H("button.pointer", hy.Attr{"type": "submit"}, hy.Txt("Log in")))
 
 	// unmarshal
 	form.Unmarshal(func() {
 		d.Password = password.Validate(hyforms.Required, hyforms.NoneOf("1234")).Value()
 		d.RememberMe = rememberme.Checked()
+		if !d.RememberMe {
+			form.AppendInputMsgs(rememberme.Name(), acceptTOSMsg)
+		}
 	})
 }
 

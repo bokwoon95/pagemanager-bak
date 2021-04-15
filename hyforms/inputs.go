@@ -164,6 +164,10 @@ func (i *ToggledInput) Check(b bool) *ToggledInput {
 	return i
 }
 
+func (i *ToggledInput) Msgs() []string {
+	return i.form.inputMsgs[i.name]
+}
+
 func (i *ToggledInput) Checked() bool {
 	if i.form.mode != FormModeUnmarshal {
 		return false
