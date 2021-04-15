@@ -481,16 +481,15 @@ const (
 
 func getLocales(ctx context.Context, db sq.Queryer) (map[string]string, error) {
 	l := tables.NEW_LOCALES(ctx, "l")
-	db = sq.NewDB(db, nil, sq.Linterpolate|sq.Lcaller)
+	db = sq.NewDB(db, nil, sq.Linterpolate|sq.Lcaller|sq.Lresults)
 	locales := make(map[string]string)
 	_, err := sq.Fetch(db, sq.SQLite.From(l), func(row *sq.Row) error {
 		localeCode := row.String(l.LOCALE_CODE)
 		description := row.String(l.DESCRIPTION)
-		if row.Count() == 0 {
+		return row.Accumulate(func() error {
+			locales[localeCode] = description
 			return nil
-		}
-		locales[localeCode] = description
-		return nil
+		})
 	})
 	if err != nil {
 		return locales, erro.Wrap(err)

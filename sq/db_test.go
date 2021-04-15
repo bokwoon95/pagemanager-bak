@@ -129,11 +129,10 @@ func Test_Fetch2(t *testing.T) {
 			var b []byte
 			row.ScanInto(&b, tbl.INFO)
 			tb.Info = b
-			if row.Count() == 0 {
+			return row.Accumulate(func() error {
+				tbs = append(tbs, tb)
 				return nil
-			}
-			tbs = append(tbs, tb)
-			return nil
+			})
 		})
 		is.NoErr(err)
 		is.Equal(int64(6), rowCount)

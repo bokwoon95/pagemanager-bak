@@ -269,14 +269,16 @@ type superadminLoginData struct {
 
 func (d *superadminLoginData) Form(form *hyforms.Form) {
 	// inputs
-	password := form.Input("password", "pm-superadmin-password", "").Set("#pm-superadmin-password.bg-near-white.pa2.w-100", hy.Attr{
-		"required": hy.Enabled,
-	})
-	rememberme := form.Checkbox("remember-me", "", false).Set("#remember-me.pointer", nil)
+	password := form.
+		Input("password", "pm-superadmin-password", "").
+		Set("#pm-superadmin-password.bg-near-white.pa2.w-100", hy.Attr{"required": hy.Enabled})
+	rememberme := form.
+		Checkbox("remember-me", "", false).
+		Set("#remember-me.pointer", nil)
 
 	// form
 	form.Set("#loginform.bg-white", hy.Attr{"name": "loginform", "method": "POST", "action": ""})
-	form.Append("div.mv2.pt2", nil, hy.H("label.pointer", hy.Attr{"for": "pm-superadmin-password"}, hy.Txt("Password:")))
+	form.Append("div.mv2.pt2", nil, hy.H("label.pointer", hy.Attr{"for": password.ID()}, hy.Txt("Password:")))
 	form.Append("div", nil, password)
 	if errs := password.Errs(); len(errs) > 0 {
 		div := hy.H("div", nil)
@@ -285,7 +287,7 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 		}
 		form.AppendElements(div)
 	}
-	form.Append("div.mv2.pt2", nil, rememberme, hy.H("label.ml1.pointer", hy.Attr{"for": "remember-me"}, hy.Txt("Remember Me")))
+	form.Append("div.mv2.pt2", nil, rememberme, hy.H("label.ml1.pointer", hy.Attr{"for": rememberme.ID()}, hy.Txt("Remember Me")))
 	form.Append("div.mv2.pt2", nil, hy.H("button.pointer", hy.Attr{"type": "submit"}, hy.Txt("Log in")))
 
 	// unmarshal
@@ -297,22 +299,13 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 
 func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 	type Data struct {
-		Page      PageData
 		CSS       template.HTML
 		JS        template.HTML
 		LoginForm template.HTML
 	}
 	switch r.Method {
 	case "GET":
-		data := Data{Page: NewPage()}
-		data.Page.JSON["yeet"] = 42069
-		data.Page.CSSAssets = []Asset{
-			{Path: "/pm-plugins/pagemanager/tachyons.css"},
-			{Path: "/pm-plugins/pagemanager/style.css"},
-		}
-		data.Page.JSAssets = []Asset{
-			{Path: "/pm-plugins/pagemanager/pmJSON.js"},
-		}
+		data := Data{}
 		var err error
 		d := &superadminLoginData{}
 		data.LoginForm, err = hyforms.MarshalForm(nil, r, d.Form)

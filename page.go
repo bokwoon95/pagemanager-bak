@@ -230,17 +230,16 @@ func (pm *PageManager) pmGetRows(pg PageData, key string, opts ...PageDataOption
 		OrderBy(PAGEDATA.ARRAY_INDEX),
 		func(row *sq.Row) error {
 			b = row.Bytes(PAGEDATA.VALUE)
-			if row.Count() == 0 {
+			return row.Accumulate(func() error {
+				value := make(map[string]interface{})
+				err := json.Unmarshal(b, &value)
+				if err != nil {
+					values = append(values, string(b)) // couldn't unmarshal json, switching to string
+				} else {
+					values = append(values, value)
+				}
 				return nil
-			}
-			value := make(map[string]interface{})
-			err := json.Unmarshal(b, &value)
-			if err != nil {
-				values = append(values, string(b)) // couldn't unmarshal json, switching to string
-			} else {
-				values = append(values, value)
-			}
-			return nil
+			})
 		},
 	)
 	if err != nil {

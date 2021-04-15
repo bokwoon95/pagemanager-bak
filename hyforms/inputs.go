@@ -30,6 +30,7 @@ func (i *Input) AppendHTML(buf *strings.Builder) error {
 }
 
 func (i *Input) Type() string         { return i.inputType }
+func (i *Input) ID() string           { return i.attrs.ID }
 func (i *Input) Name() string         { return i.name }
 func (i *Input) DefaultValue() string { return i.defaultValue }
 
@@ -153,6 +154,7 @@ func (f *Form) Radio(name string, value string, checked bool) *ToggledInput {
 }
 
 func (i *ToggledInput) Name() string  { return i.name }
+func (i *ToggledInput) ID() string    { return i.attrs.ID }
 func (i *ToggledInput) Type() string  { return i.inputType }
 func (i *ToggledInput) Value() string { return i.value }
 

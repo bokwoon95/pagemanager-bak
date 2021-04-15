@@ -216,11 +216,10 @@ func (pm *PageManager) Decrypt(ciphertext string) (plaintext string, err error) 
 		OrderBy(ENCRYPTION_KEYS.ID),
 		func(row *sq.Row) error {
 			encryptionKeyCiphertext := row.String(ENCRYPTION_KEYS.KEY_CIPHERTEXT)
-			if row.Count() == 0 {
+			return row.Accumulate(func() error {
+				encryptionKeyCiphertexts = append(encryptionKeyCiphertexts, encryptionKeyCiphertext)
 				return nil
-			}
-			encryptionKeyCiphertexts = append(encryptionKeyCiphertexts, encryptionKeyCiphertext)
-			return nil
+			})
 		},
 	)
 	if err != nil {

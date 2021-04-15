@@ -147,10 +147,10 @@ func (lg logger) LogQueryStats(ctx context.Context, stats QueryStats) {
 		} else {
 			buf.WriteString("\n" + QuestionInterpolate(stats.Query, stats.Args...))
 		}
-		if Lresults&stats.LogFlag != 0 && stats.ResultsPreview != "" {
-			buf.WriteString("\n" + colorPurple + "----[ Fetched result ]----" + colorReset)
-			buf.WriteString(stats.ResultsPreview)
-		}
+	}
+	if Lresults&stats.LogFlag != 0 && stats.ResultsPreview != "" {
+		buf.WriteString("\n" + colorPurple + "----[ Fetched result ]----" + colorReset)
+		buf.WriteString(stats.ResultsPreview)
 	}
 }
 

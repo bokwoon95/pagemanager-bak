@@ -38,6 +38,13 @@ func (r *Row) Count() int64 {
 	return r.count
 }
 
+func (r *Row) Accumulate(accumulator func() error) error {
+	if r.rows == nil {
+		return nil
+	}
+	return accumulator()
+}
+
 /* custom */
 
 // ScanInto scans the field into a dest, where dest is a pointer.
