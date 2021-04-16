@@ -42,6 +42,9 @@ func (f *Form) AppendHTML(buf *strings.Builder) error {
 }
 
 func (f *Form) registerName(name string, skip int) {
+	if f.mode == FormModeUnmarshal {
+		return
+	}
 	if _, ok := f.inputNames[name]; ok {
 		file, line, _ := caller(skip + 1)
 		f.marshalErrMsgs = append(f.marshalErrMsgs, fmt.Sprintf("%s:%d duplicate name: %s", file, line, name))

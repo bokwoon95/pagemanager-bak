@@ -277,7 +277,7 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 		Checkbox("remember-me", "", false).
 		Set("#remember-me.pointer", nil)
 
-	// form
+	// marshal
 	form.Set("#loginform.bg-white", hy.Attr{"name": "loginform", "method": "POST", "action": ""})
 	form.Append("div.mv2.pt2", nil, hy.H("label.pointer", hy.Attr{"for": password.ID()}, hy.Txt("Password:")))
 	form.Append("div", nil, password)
@@ -347,6 +347,7 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		err := hyforms.UnmarshalForm(w, r, d.Form)
 		fmt.Println(d)
 		if err != nil {
+			// hyforms.Flash()
 			http.Redirect(w, r, LocaleURL(r), http.StatusMovedPermanently)
 			return
 		}

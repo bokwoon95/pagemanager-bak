@@ -43,7 +43,7 @@ func (i *Input) Validate(validators ...Validator) *Input {
 	if len(i.form.request.Form[i.name]) > 0 {
 		value = i.form.request.Form[i.name][0]
 	}
-	validate(i.form, i.name, value, validators)
+	validateInput(i.form, i.name, value, validators)
 	return i
 }
 
@@ -79,7 +79,7 @@ func (i *Input) Int(validators ...Validator) (num int, err error) {
 	if err != nil {
 		return 0, erro.Wrap(err)
 	}
-	validate(i.form, i.name, num, validators)
+	validateInput(i.form, i.name, num, validators)
 	return num, nil
 }
 
@@ -92,7 +92,7 @@ func (i *Input) Float64(validators ...Validator) (num float64, err error) {
 	if err != nil {
 		return 0, erro.Wrap(err)
 	}
-	validate(i.form, i.name, num, validators)
+	validateInput(i.form, i.name, num, validators)
 	return num, nil
 }
 
@@ -153,6 +153,8 @@ func (i *ToggledInput) Name() string  { return i.name }
 func (i *ToggledInput) ID() string    { return i.attrs.ID }
 func (i *ToggledInput) Type() string  { return i.inputType }
 func (i *ToggledInput) Value() string { return i.value }
+
+// form.Input("checkbox", "name", "value")
 
 func (i *ToggledInput) Set(selector string, attributes map[string]string) *ToggledInput {
 	i.attrs = hy.ParseAttributes(selector, attributes)
