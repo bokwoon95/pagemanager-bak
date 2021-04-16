@@ -327,18 +327,6 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 				hy.H("script", hy.Attr{"src": "/pm-plugins/pagemanager/pmJSON.js"}),
 			},
 		})
-		// data.CSS, err = hy.MarshalElement(nil, hy.Elements{
-		// 	hy.H("link[rel=stylesheet][type=text/css]", hy.Attr{"href": "/pm-plugins/pagemanager/tachyons.css"}),
-		// 	hy.H("link[rel=stylesheet][type=text/css]", hy.Attr{"href": "/pm-plugins/pagemanager/style.css"}),
-		// })
-		// if err != nil {
-		// 	http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
-		// 	return
-		// }
-		// data.JS, err = hy.MarshalElement(nil, hy.Elements{
-		// 	hy.JSON("[data-pm-json]", nil, map[string]interface{}{"yeet": 42069}),
-		// 	hy.H("script", hy.Attr{"src": "/pm-plugins/pagemanager/pmJSON.js"}),
-		// })
 		if err != nil {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
 			return

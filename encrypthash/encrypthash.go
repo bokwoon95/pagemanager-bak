@@ -22,38 +22,43 @@ type Hasher interface {
 }
 
 type Blackbox struct {
-	key     []byte
-	getKeys func() (keys [][]byte, err error)
+	key         []byte
+	keyIterator func() (nextKey func() (key []byte, err error), err error)
 }
 
 var _ Encrypter = &Blackbox{}
 var _ Hasher = &Blackbox{}
 
-func New(key []byte, getKeys func() (keys [][]byte, err error)) (*Blackbox, error) {
-	if len(key) == 0 && getKeys == nil {
+func New(key []byte, keyIterator func() (nextKey func() (key []byte, err error), err error)) (*Blackbox, error) {
+	if len(key) == 0 && keyIterator == nil {
 		return nil, erro.Wrap(fmt.Errorf("Either keys or getKeys function must be non-nil"))
 	}
-	return &Blackbox{key: key, getKeys: getKeys}, nil
+	return &Blackbox{key: key, keyIterator: keyIterator}, nil
 }
 
 func (box *Blackbox) Encrypt(plaintext []byte) (ciphertext []byte, err error) {
 	const nonceSize = 24
-	var key []byte
-	if box.getKeys != nil {
-		var keys [][]byte
-		keys, err = box.getKeys()
-		if err != nil {
-			return nil, erro.Wrap(err)
-		}
-		if len(keys) == 0 {
-			return nil, erro.Wrap(fmt.Errorf("no key found"))
-		}
-		key = keys[0]
-	} else {
+	if box.keyIterator == nil {
 		if len(box.key) == 0 {
 			return nil, erro.Wrap(fmt.Errorf("no key found"))
 		}
-		key = box.key
+		hashedKey := blake2b.Sum512(box.key)
+		var hashKeyUpper [32]byte
+		copy(hashKeyUpper[:], hashedKey[:32])
+		var nonce [nonceSize]byte
+		if _, err := rand.Read(nonce[:]); err != nil {
+			return nil, erro.Wrap(err)
+		}
+		ciphertext = secretbox.Seal(nonce[:], plaintext, &nonce, &hashKeyUpper)
+		return ciphertext, nil
+	}
+	nextKey, err := box.keyIterator()
+	if err != nil {
+		return nil, erro.Wrap(err)
+	}
+	key, err := nextKey()
+	if err != nil {
+		return nil, erro.Wrap(err)
 	}
 	hashedKey := blake2b.Sum512(key)
 	var hashKeyUpper [32]byte
@@ -68,53 +73,67 @@ func (box *Blackbox) Encrypt(plaintext []byte) (ciphertext []byte, err error) {
 
 func (box *Blackbox) Decrypt(ciphertext []byte) (plaintext []byte, err error) {
 	const nonceSize = 24
-	var keys [][]byte
-	if box.getKeys != nil {
-		keys, err = box.getKeys()
-		if err != nil {
-			return nil, erro.Wrap(err)
-		}
-		if len(keys) == 0 {
-			return nil, erro.Wrap(fmt.Errorf("no key found"))
-		}
-	} else {
+	if box.keyIterator == nil {
 		if len(box.key) == 0 {
 			return nil, erro.Wrap(fmt.Errorf("no key found"))
 		}
-		keys = [][]byte{box.key}
+		hashedKey := blake2b.Sum512(box.key)
+		var hashedKeyUpper [32]byte
+		copy(hashedKeyUpper[:], hashedKey[:32])
+		var nonce [nonceSize]byte
+		copy(nonce[:], ciphertext[:nonceSize])
+		plaintext, ok := secretbox.Open(nil, ciphertext[nonceSize:], &nonce, &hashedKeyUpper)
+		if ok {
+			return plaintext, nil
+		}
+		return nil, erro.Wrap(fmt.Errorf("decryption error"))
 	}
-	for _, key := range keys {
+	nextKey, err := box.keyIterator()
+	if err != nil {
+		return nil, erro.Wrap(err)
+	}
+	const maxAttempts = 100
+	for i := 0; i < maxAttempts; i++ {
+		key, err := nextKey()
+		if err != nil {
+			return nil, erro.Wrap(err)
+		}
+		if len(key) == 0 {
+			break
+		}
 		hashedKey := blake2b.Sum512(key)
 		var hashedKeyUpper [32]byte
 		copy(hashedKeyUpper[:], hashedKey[:32])
 		var nonce [nonceSize]byte
 		copy(nonce[:], ciphertext[:nonceSize])
 		plaintext, ok := secretbox.Open(nil, ciphertext[nonceSize:], &nonce, &hashedKeyUpper)
-		if !ok {
-			continue
+		if ok {
+			return plaintext, nil
 		}
-		return plaintext, nil
 	}
 	return nil, erro.Wrap(fmt.Errorf("decryption error"))
 }
 
 func (box *Blackbox) Hash(msg []byte) (hash []byte, err error) {
-	var key []byte
-	if box.getKeys != nil {
-		var keys [][]byte
-		keys, err = box.getKeys()
-		if err != nil {
-			return nil, erro.Wrap(err)
-		}
-		if len(keys) == 0 {
-			return nil, erro.Wrap(fmt.Errorf("no key found"))
-		}
-		key = keys[0]
-	} else {
+	if box.keyIterator == nil {
 		if len(box.key) == 0 {
 			return nil, erro.Wrap(fmt.Errorf("no key found"))
 		}
-		key = box.key
+		hashedKey := blake2b.Sum512([]byte(box.key))
+		hashedKeyLower := hashedKey[32:]
+		h, _ := blake2b.New512(hashedKeyLower)
+		h.Reset()
+		h.Write([]byte(msg))
+		sum := h.Sum(nil)
+		return sum, nil
+	}
+	nextKey, err := box.keyIterator()
+	if err != nil {
+		return nil, erro.Wrap(err)
+	}
+	key, err := nextKey()
+	if err != nil {
+		return nil, erro.Wrap(err)
 	}
 	hashedKey := blake2b.Sum512([]byte(key))
 	hashedKeyLower := hashedKey[32:]
@@ -126,23 +145,34 @@ func (box *Blackbox) Hash(msg []byte) (hash []byte, err error) {
 }
 
 func (box *Blackbox) VerifyHash(msg []byte, hash []byte) error {
-	var err error
-	var keys [][]byte
-	if box.getKeys != nil {
-		keys, err = box.getKeys()
-		if err != nil {
-			return erro.Wrap(err)
-		}
-		if len(keys) == 0 {
-			return erro.Wrap(fmt.Errorf("no key found"))
-		}
-	} else {
+	if box.keyIterator == nil {
 		if len(box.key) == 0 {
 			return erro.Wrap(fmt.Errorf("no key found"))
 		}
-		keys = [][]byte{box.key}
+		hashedKey := blake2b.Sum512([]byte(box.key))
+		hashedKeyLower := hashedKey[32:]
+		h, _ := blake2b.New512(hashedKeyLower)
+		h.Reset()
+		h.Write([]byte(msg))
+		computedHash := h.Sum(nil)
+		if subtle.ConstantTimeCompare(computedHash, hash) == 1 {
+			return nil
+		}
+		return erro.Wrap(fmt.Errorf("hash not valid"))
 	}
-	for _, key := range keys {
+	nextKey, err := box.keyIterator()
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	const maxAttempts = 100
+	for i := 0; i < maxAttempts; i++ {
+		key, err := nextKey()
+		if err != nil {
+			return erro.Wrap(err)
+		}
+		if len(key) == 0 {
+			break
+		}
 		hashedKey := blake2b.Sum512([]byte(key))
 		hashedKeyLower := hashedKey[32:]
 		h, _ := blake2b.New512(hashedKeyLower)
