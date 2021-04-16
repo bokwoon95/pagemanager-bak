@@ -9,7 +9,7 @@ import (
 
 func Test_Box(t *testing.T) {
 	is := testutil.New(t)
-	box, err := New([]byte("abcdefg"), nil)
+	box, err := New([]byte("abcdefg"), nil, nil)
 	is.NoErr(err)
 
 	t.Run("encryption", func(t *testing.T) {
