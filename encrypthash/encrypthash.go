@@ -95,7 +95,7 @@ func (box *Blackbox) Decrypt(ciphertext []byte) (plaintext []byte, err error) {
 	return nil, erro.Wrap(fmt.Errorf("decryption error"))
 }
 
-func (box *Blackbox) Hash(data []byte) (hash []byte, err error) {
+func (box *Blackbox) Hash(msg []byte) (hash []byte, err error) {
 	var key []byte
 	if box.getKeys != nil {
 		var keys [][]byte
@@ -117,12 +117,12 @@ func (box *Blackbox) Hash(data []byte) (hash []byte, err error) {
 	hashedKeyLower := hashedKey[32:]
 	h, _ := blake2b.New512(hashedKeyLower)
 	h.Reset()
-	h.Write([]byte(data))
+	h.Write([]byte(msg))
 	sum := h.Sum(nil)
 	return sum, nil
 }
 
-func (box *Blackbox) VerifyHash(data []byte, hash []byte) error {
+func (box *Blackbox) VerifyHash(msg []byte, hash []byte) error {
 	var err error
 	var keys [][]byte
 	if box.getKeys != nil {
@@ -144,7 +144,7 @@ func (box *Blackbox) VerifyHash(data []byte, hash []byte) error {
 		hashedKeyLower := hashedKey[32:]
 		h, _ := blake2b.New512(hashedKeyLower)
 		h.Reset()
-		h.Write([]byte(data))
+		h.Write([]byte(msg))
 		computedHash := h.Sum(nil)
 		if subtle.ConstantTimeCompare(computedHash, hash) == 1 {
 			return nil
@@ -178,50 +178,50 @@ func (box *Blackbox) Base64Decrypt(b64Ciphertext string) (plaintext []byte, err 
 	return plaintext, nil
 }
 
-func (box *Blackbox) Base64Hash(data []byte) (b64DataAndHash string, err error) {
-	hash, err := box.Hash(data)
+func (box *Blackbox) Base64Hash(msg []byte) (b64HashedMsg string, err error) {
+	hash, err := box.Hash(msg)
 	if err != nil {
 		return "", erro.Wrap(err)
 	}
-	b64Data := make([]byte, base64.RawURLEncoding.EncodedLen(len(data)))
-	base64.RawURLEncoding.Encode(b64Data, data)
+	b64Msg := make([]byte, base64.RawURLEncoding.EncodedLen(len(msg)))
+	base64.RawURLEncoding.Encode(b64Msg, msg)
 	b64Hash := make([]byte, base64.RawURLEncoding.EncodedLen(len(hash)))
 	base64.RawURLEncoding.Encode(b64Hash, hash)
-	var base64DataAndHash []byte
-	base64DataAndHash = append(base64DataAndHash, b64Data...)
-	base64DataAndHash = append(base64DataAndHash, '.')
-	base64DataAndHash = append(base64DataAndHash, b64Hash...)
-	return string(base64DataAndHash), nil
+	var base64HashedMsg []byte
+	base64HashedMsg = append(base64HashedMsg, b64Msg...)
+	base64HashedMsg = append(base64HashedMsg, '.')
+	base64HashedMsg = append(base64HashedMsg, b64Hash...)
+	return string(base64HashedMsg), nil
 }
 
-func (box *Blackbox) Base64VerifyHash(b64DataAndHash string) (data []byte, err error) {
-	base64DataAndHash := []byte(b64DataAndHash)
+func (box *Blackbox) Base64VerifyHash(b64HashedMsg string) (msg []byte, err error) {
+	base64HashedMsg := []byte(b64HashedMsg)
 	dotIndex := -1
-	for i, c := range base64DataAndHash {
+	for i, c := range base64HashedMsg {
 		if c == '.' {
 			dotIndex = i
 			break
 		}
 	}
 	if dotIndex < 0 {
-		return nil, erro.Wrap(fmt.Errorf("invalid b64DataAndHash"))
+		return nil, erro.Wrap(fmt.Errorf("invalid b64HashedMsg"))
 	}
-	b64Data := base64DataAndHash[:dotIndex]
-	data = make([]byte, base64.RawURLEncoding.DecodedLen(len(b64Data)))
-	n, err := base64.RawURLEncoding.Decode(data, b64Data)
+	b64Data := base64HashedMsg[:dotIndex]
+	msg = make([]byte, base64.RawURLEncoding.DecodedLen(len(b64Data)))
+	n, err := base64.RawURLEncoding.Decode(msg, b64Data)
 	if err != nil {
 		return nil, erro.Wrap(err)
 	}
-	data = data[:n]
-	b64Hash := base64DataAndHash[dotIndex+1:]
+	msg = msg[:n]
+	b64Hash := base64HashedMsg[dotIndex+1:]
 	hash := make([]byte, base64.RawURLEncoding.DecodedLen(len(b64Hash)))
 	n, err = base64.RawURLEncoding.Decode(hash, b64Hash)
 	if err != nil {
 		return nil, erro.Wrap(err)
 	}
-	err = box.VerifyHash(data, hash)
+	err = box.VerifyHash(msg, hash)
 	if err != nil {
 		return nil, erro.Wrap(err)
 	}
-	return data, nil
+	return msg, nil
 }
