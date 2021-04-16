@@ -275,3 +275,19 @@ func MarshalElement(s Sanitizer, el Element) (template.HTML, error) {
 	output := s.Sanitize(buf.String())
 	return template.HTML(output), nil
 }
+
+type ElementMap map[*template.HTML]Element
+
+func MarshalElements(s Sanitizer, elements map[*template.HTML]Element) error {
+	var err error
+	for dest, element := range elements {
+		if dest == nil {
+			continue
+		}
+		*dest, err = MarshalElement(s, element)
+		if err != nil {
+			return erro.Wrap(err)
+		}
+	}
+	return nil
+}
