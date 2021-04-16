@@ -274,7 +274,7 @@ func (d *superadminLoginData) Form(form *hyforms.Form) {
 		Input("password", "pm-superadmin-password", "").
 		Set("#pm-superadmin-password.bg-near-white.pa2.w-100", hy.Attr{"required": hy.Enabled})
 	rememberme := form.
-		Checkbox("remember-me", "", false).
+		Checkbox("remember-me", "", d.RememberMe).
 		Set("#remember-me.pointer", nil)
 
 	// marshal
@@ -311,6 +311,7 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 		data := Data{}
 		var err error
 		d := &superadminLoginData{}
+		_ = hyforms.CookiePop(w, r, "yeetus", d)
 		data.LoginForm, err = hyforms.MarshalForm(nil, w, r, d.Form)
 		if err != nil {
 			http.Error(w, erro.Wrap(err).Error(), http.StatusInternalServerError)
@@ -345,9 +346,8 @@ func (pm *PageManager) superadminLogin(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		var d superadminLoginData
 		err := hyforms.UnmarshalForm(w, r, d.Form)
-		fmt.Println(d)
 		if err != nil {
-			// hyforms.Flash()
+			_ = hyforms.CookieSet(w, "yeetus", d, nil)
 			http.Redirect(w, r, LocaleURL(r), http.StatusMovedPermanently)
 			return
 		}

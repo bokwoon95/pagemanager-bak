@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -15,7 +15,6 @@ import (
 	"github.com/bokwoon95/erro"
 	"github.com/bokwoon95/pagemanager/encrypthash"
 	"github.com/bokwoon95/pagemanager/hy"
-	"github.com/microcosm-cc/bluemonday"
 )
 
 type ValidationError struct {
@@ -29,64 +28,8 @@ func (e *ValidationError) Error() string {
 }
 
 type Hyforms struct {
-	sanitizer hy.Sanitizer
-	box       *encrypthash.Blackbox
+	box *encrypthash.Blackbox
 }
-
-var defaultSanitizer = func() hy.Sanitizer {
-	p := bluemonday.UGCPolicy()
-	p.AllowStyling()
-	p.AllowDataAttributes()
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#attributes
-	p.AllowElements("form")
-	p.AllowAttrs("accept-charset", "autocomplete", "name", "rel", "action", "enctype", "method", "novalidate", "target").OnElements("form")
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input#attributes
-	p.AllowElements("input")
-	p.AllowAttrs(
-		"accept", "alt", "autocomplete", "autofocus", "capture", "checked",
-		"dirname", "disabled", "form", "formaction", "formenctype", "formmethod",
-		"formnovalidate", "formtarget", "height", "list", "max", "maxlength", "min",
-		"minlength", "multiple", "name", "pattern", "placeholder", "readonly",
-		"required", "size", "src", "step", "type", "value", "width",
-	).OnElements("input")
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#attributes
-	p.AllowElements("button")
-	p.AllowAttrs(
-		"autofocus", "disabled", "form", "formaction", "formenctype",
-		"formmethod", "formnovalidate", "formtarget", "name", "type", "value",
-	).OnElements("button")
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/label#attributes
-	p.AllowElements("label")
-	p.AllowAttrs("for").OnElements("label")
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/select#attributes
-	p.AllowElements("select")
-	p.AllowAttrs("autocomplete", "autofocus", "disabled", "form", "multiple", "name", "required", "size").OnElements("select")
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/option#attributes
-	p.AllowElements("option")
-	p.AllowAttrs("disabled", "label", "selected", "value").OnElements("option")
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inputmode
-	p.AllowAttrs("inputmode").Globally()
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/link#attributes
-	p.AllowElements("link")
-	p.AllowAttrs(
-		"as", "crossorigin", "disabled", "href", "hreflang", "imagesizes",
-		"imagesrcset", "media", "rel", "sizes", "title", "type",
-	).OnElements("link")
-	p.AllowStandardURLs()
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#attributes
-	p.AllowElements("script")
-	p.AllowAttrs("async", "crossorigin", "defer", "integrity", "nomodule", "nonce", "referrerpolicy", "src", "type").OnElements("script")
-
-	p.AllowElements("svg")
-
-	p.AllowImages()
-	p.AllowLists()
-	p.AllowTables()
-
-	// settings which bluemonday loves to turn back on, leave it for the last
-	p.RequireNoFollowOnLinks(false)
-	return p
-}()
 
 var defaultHyforms = func() *Hyforms {
 	key := make([]byte, 24)
@@ -98,10 +41,10 @@ var defaultHyforms = func() *Hyforms {
 	if err != nil {
 		panic(err)
 	}
-	return &Hyforms{sanitizer: defaultSanitizer, box: box}
-}
+	return &Hyforms{box: box}
+}()
 
-func (hyf *Hyforms) MarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) (template.HTML, error) {
+func (hyf *Hyforms) MarshalForm(s hy.Sanitizer, w http.ResponseWriter, r *http.Request, fn func(*Form)) (template.HTML, error) {
 	form := &Form{
 		request:      r,
 		inputNames:   make(map[string]struct{}),
@@ -117,7 +60,6 @@ func (hyf *Hyforms) MarshalForm(w http.ResponseWriter, r *http.Request, fn func(
 		if err != nil {
 			return
 		}
-		fmt.Println(c.Value)
 		validationErr := &ValidationError{}
 		err = gob.NewDecoder(bytes.NewReader(b)).Decode(validationErr)
 		if err != nil {
@@ -133,7 +75,7 @@ func (hyf *Hyforms) MarshalForm(w http.ResponseWriter, r *http.Request, fn func(
 	if len(form.marshalErrMsgs) > 0 {
 		return "", erro.Wrap(fmt.Errorf("marshal errors %v", form.marshalErrMsgs))
 	}
-	output, err := hy.MarshalElement(hyf.sanitizer, form)
+	output, err := hy.MarshalElement(s, form)
 	if err != nil {
 		return output, erro.Wrap(err)
 	}
@@ -174,73 +116,85 @@ func (hyf *Hyforms) UnmarshalForm(w http.ResponseWriter, r *http.Request, fn fun
 	return nil
 }
 
-func MarshalForm(s hy.Sanitizer, w http.ResponseWriter, r *http.Request, fn func(*Form)) (template.HTML, error) {
-	form := &Form{
-		request:      r,
-		inputNames:   make(map[string]struct{}),
-		inputErrMsgs: make(map[string][]string),
-	}
-	func() {
-		c, _ := r.Cookie("hyforms.ValidationError")
-		if c == nil {
-			return
-		}
-		defer http.SetCookie(w, &http.Cookie{Name: "hyforms.ValidationError", MaxAge: -1})
-		b, err := base64.RawURLEncoding.DecodeString(c.Value)
+func (hyf *Hyforms) CookieSet(w http.ResponseWriter, cookieName string, value interface{}, cookieTemplate *http.Cookie) error {
+	buf := &bytes.Buffer{}
+	switch value := value.(type) {
+	case []byte:
+		buf.Write(value)
+	case string:
+		buf.WriteString(value)
+	default:
+		err := gob.NewEncoder(buf).Encode(value)
 		if err != nil {
-			return
+			return erro.Wrap(err)
 		}
-		fmt.Println(c.Value)
-		validationErr := &ValidationError{}
-		err = gob.NewDecoder(bytes.NewReader(b)).Decode(validationErr)
-		if err != nil {
-			return
-		}
-		if time.Now().After(validationErr.Expires) {
-			return
-		}
-		form.formErrMsgs = validationErr.FormErrMsgs
-		form.inputErrMsgs = validationErr.InputErrMsgs
-	}()
-	fn(form)
-	if len(form.marshalErrMsgs) > 0 {
-		return "", erro.Wrap(fmt.Errorf("marshal errors %v", form.marshalErrMsgs))
 	}
-	output, err := hy.MarshalElement(s, form)
+	b64HashedValue, err := hyf.box.Base64Hash(buf.Bytes())
 	if err != nil {
-		return output, erro.Wrap(err)
+		return erro.Wrap(err)
 	}
-	return output, nil
+	if cookieTemplate == nil {
+		cookieTemplate = &http.Cookie{}
+	}
+	cookieTemplate.Name = cookieName
+	cookieTemplate.Value = b64HashedValue
+	http.SetCookie(w, cookieTemplate)
+	return nil
+}
+
+func (hyf *Hyforms) CookieGet(r *http.Request, cookieName string, dest interface{}) error {
+	c, err := r.Cookie(cookieName)
+	if err != nil && !errors.Is(err, http.ErrNoCookie) {
+		return erro.Wrap(err)
+	}
+	if c == nil {
+		return nil
+	}
+	data, err := hyf.box.Base64VerifyHash(c.Value)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	switch dest := dest.(type) {
+	case *[]byte:
+		*dest = data
+	case *string:
+		*dest = string(data)
+	default:
+		err = gob.NewDecoder(bytes.NewReader(data)).Decode(dest)
+		if err != nil {
+			return erro.Wrap(err)
+		}
+	}
+	return nil
+}
+
+func (hyf *Hyforms) CookiePop(w http.ResponseWriter, r *http.Request, cookieName string, dest interface{}) error {
+	defer http.SetCookie(w, &http.Cookie{Name: cookieName, MaxAge: -1, Expires: time.Now().Add(-1 * time.Hour)})
+	err := hyf.CookieGet(r, cookieName, dest)
+	if err != nil {
+		return erro.Wrap(err)
+	}
+	return nil
+}
+
+func MarshalForm(s hy.Sanitizer, w http.ResponseWriter, r *http.Request, fn func(*Form)) (template.HTML, error) {
+	return defaultHyforms.MarshalForm(s, w, r, fn)
 }
 
 func UnmarshalForm(w http.ResponseWriter, r *http.Request, fn func(*Form)) error {
-	r.ParseForm()
-	form := &Form{
-		mode:         FormModeUnmarshal,
-		request:      r,
-		inputNames:   make(map[string]struct{}),
-		inputErrMsgs: make(map[string][]string),
-	}
-	fn(form)
-	if len(form.formErrMsgs) > 0 || len(form.inputErrMsgs) > 0 {
-		validationErr := ValidationError{
-			FormErrMsgs:  form.formErrMsgs,
-			InputErrMsgs: form.inputErrMsgs,
-			Expires:      time.Now().Add(5 * time.Second),
-		}
-		buf := &bytes.Buffer{}
-		err := gob.NewEncoder(buf).Encode(validationErr)
-		if err != nil {
-			return fmt.Errorf("%w: failed gob encoding %s", &validationErr, err.Error())
-		}
-		http.SetCookie(w, &http.Cookie{
-			Name:   "hyforms.ValidationError",
-			Value:  base64.RawURLEncoding.EncodeToString(buf.Bytes()),
-			MaxAge: 5,
-		})
-		return &validationErr
-	}
-	return nil
+	return defaultHyforms.UnmarshalForm(w, r, fn)
+}
+
+func CookieSet(w http.ResponseWriter, cookieName string, value interface{}, c *http.Cookie) error {
+	return defaultHyforms.CookieSet(w, cookieName, value, c)
+}
+
+func CookieGet(r *http.Request, cookieName string, dest interface{}) error {
+	return defaultHyforms.CookieGet(r, cookieName, dest)
+}
+
+func CookiePop(w http.ResponseWriter, r *http.Request, cookieName string, dest interface{}) error {
+	return defaultHyforms.CookiePop(w, r, cookieName, dest)
 }
 
 func caller(skip int) (file string, line int, function string) {
