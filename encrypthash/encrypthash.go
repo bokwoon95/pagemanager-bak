@@ -26,6 +26,9 @@ type Blackbox struct {
 	getKeys func() (keys [][]byte, err error)
 }
 
+var _ Encrypter = &Blackbox{}
+var _ Hasher = &Blackbox{}
+
 func New(key []byte, getKeys func() (keys [][]byte, err error)) (*Blackbox, error) {
 	if len(key) == 0 && getKeys == nil {
 		return nil, erro.Wrap(fmt.Errorf("Either keys or getKeys function must be non-nil"))
