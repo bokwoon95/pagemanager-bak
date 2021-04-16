@@ -33,7 +33,7 @@ type Hyforms struct {
 	box       *encrypthash.Blackbox
 }
 
-var defaultSanitizer = func() Sanitizer {
+var defaultSanitizer = func() hy.Sanitizer {
 	p := bluemonday.UGCPolicy()
 	p.AllowStyling()
 	p.AllowDataAttributes()
